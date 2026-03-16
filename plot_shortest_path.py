@@ -13,7 +13,7 @@ terrain = TerrainGraph("DHM25_subset.asc")
 # Compute path
 # -------------------------------
 start_node = (1, 90)
-goal_node = (139, 50)
+goal_node = (140, 50)
 
 path, cost = dijkstra(terrain, start_node, goal_node)
 
