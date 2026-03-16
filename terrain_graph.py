@@ -33,7 +33,7 @@ class TerrainGraph:
 
         # default cost model
         self.uphill_cost = uphill_cost or {
-            (0,   5): 1.0,  # baseline speed for 0-25 degree slopes
+            (0,   5): 1.0,  # baseline speed for 0-5 degree slopes
             (5,  25): 1.2,
             (25, 35): 1.4,
             (35, 40): 1.6,
