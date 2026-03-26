@@ -32,22 +32,17 @@ class TerrainGraph:
                            ]
 
         # default cost model
-        self.uphill_cost = uphill_cost or {
-            (0,   5): 1.0,  # baseline speed for 0-5 degree slopes
-            (5,  25): 1.2,
-            (25, 35): 1.4,
-            (35, 40): 1.6,
-            (40, 45): 2.0,
-            (45, 90): 10.0,
+        self.angle_cost = uphill_cost or {
+            (-90, -45): 10000,
+            (-45,   0): 0.6,  # people will downclimb unless they are pros
+            (0, 25): 1.0,  # baseline speed for 0-25 degree slopes
+            (25, 30): 1.4,
+            (30, 35): 1.8,
+            (35, 45): 2.5,
+            (45, 90): float("inf"),
         }
 
-        self.downhill_cost = downhill_cost or {
-            (0,   5): 0.6,
-            (5,  45): 0.2,
-            (45, 90): 10.0,  # people will downclimb unless they are pros
-        }
-
-        # fmt: on
+    # fmt: on
 
     def _load_asc(self, asc_file):
 
@@ -96,32 +91,51 @@ class TerrainGraph:
 
             yield neighbor, cost
 
-    def _slope_angle(self, node_from, node_to):
-
+    def _vertical_distance(self, node_from, node_to):
         row_from, col_from = node_from
         row_to, col_to = node_to
 
         height_from = self.data[row_from, col_from]
         height_to = self.data[row_to, col_to]
+        return height_to - height_from
+
+    def _slope_angle(self, node_from, node_to):
+
+        row_from, col_from = node_from
+        row_to, col_to = node_to
 
         delta_row = (row_to - row_from) * self.cellsize
         delta_col = (col_to - col_from) * self.cellsize
 
-        horizontal_distance = math.sqrt(delta_row**2 + delta_col**2)
-
-        slope = (height_to - height_from) / horizontal_distance
+        dist_h = math.sqrt(delta_row**2 + delta_col**2)
+        dist_v = self._vertical_distance(node_from, node_to)
+        slope = dist_v / dist_h
 
         return math.degrees(math.atan(slope))
 
-    def _cost_factor(self, angle, uphill=True):
-        cost_table = self.uphill_cost if uphill else self.downhill_cost
+    def _uphill_travel_time(self, angle, dist_h, node_from, node_to):
+        speed_h = 4 / 3.6  # horizontal base speed in m/s
+        speed_v = 0.4 / 3.6  # vertical uphill base speed in m/s
+        dist_v = max(0, self._vertical_distance(node_from, node_to))
+        for (low, high), factor in self.angle_cost.items():
+            if low <= angle < high and angle >= 0:
+                time = dist_h / speed_h + factor * dist_v / speed_v
+                return time
 
-        for (low, high), factor in cost_table.items():
-            if low <= abs(angle) < high:
-                return factor
+    def _descent_speed(self, angle):
+        v_max = 40 / 3.6  # max dh speed in m/s
+        v_min = 4 / 3.6  # min dh speed in m/s
+        angle = np.clip(np.abs(angle), 0, 45)
 
-        # If we reach this point, the table is incomplete
-        raise ValueError(f"No cost factor defined for angle {angle:.1f}°")
+        rise = 1 / (1 + np.exp(-(angle - 25) / 2))
+        decay = 1 / (1 + np.exp((angle - 50) / 8))
+
+        raw = v_max * rise * decay
+
+        return np.maximum(raw, v_min)
+
+    def _downhill_travel_time(self, dist_h, angle):
+        return dist_h / self._descent_speed(angle)
 
     def edge_cost(self, node_from, node_to):
         """
@@ -134,12 +148,6 @@ class TerrainGraph:
         # slope in degrees
         angle = self._slope_angle(node_from, node_to)
 
-        # uphill if positive slope
-        uphill = angle > 0
-
-        # get cost factor
-        factor = self._cost_factor(angle, uphill)
-
         # coordinates
         row_from, col_from = node_from
         row_to, col_to = node_to
@@ -148,6 +156,11 @@ class TerrainGraph:
         delta_row = (row_to - row_from) * self.cellsize
         delta_col = (col_to - col_from) * self.cellsize
 
-        horizontal_distance = math.sqrt(delta_row**2 + delta_col**2)
+        dist_h = math.sqrt(delta_row**2 + delta_col**2)
 
-        return horizontal_distance * factor
+        # uphill if positive slope
+        if angle >= 0:
+            return self._uphill_travel_time(angle, dist_h, node_from, node_to)
+        elif angle < 0 and angle > -45:
+            return self._downhill_travel_time(dist_h, angle)
+        return float("inf")
