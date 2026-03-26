@@ -12,15 +12,20 @@ terrain = TerrainGraph("DHM25_subset.asc")
 # -------------------------------
 # Compute path
 # -------------------------------
-start_node = (1, 90)
-goal_node = (140, 50)
+start_node = (1, 1)
+goal_node = (139, 197)
 
-path, cost = dijkstra(terrain, start_node, goal_node)
+path, time = dijkstra(terrain, start_node, goal_node)
+
+hours = int(time // 3600)
+minutes = int((time % 3600) // 60)
 
 if path is None:
     raise ValueError("No path found")
 
-print(f"Total cost: {cost:.2f}, Path length: {len(path)}")
+print(f"Total time: {hours}h {minutes}min")
+
+print(f"Path length: {len(path)} (number of nodes not the distance yet..)")
 
 # Convert path to arrays
 rows, cols = zip(*path)
