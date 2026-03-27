@@ -18,10 +18,10 @@ class TerrainGraph:
     def __init__(self, asc_file, uphill_cost=None, downhill_cost=None):
 
         self.data, header = self._load_asc(asc_file)
-
         self.cellsize = header["cellsize"]
         self.nodata = header["NODATA_value"]
-
+        self.xllcorner = header["xllcorner"]  # ← add this
+        self.yllcorner = header["yllcorner"]
         self.rows, self.cols = self.data.shape
 
         # 8-neighbor directions
@@ -43,6 +43,12 @@ class TerrainGraph:
         }
 
     # fmt: on
+
+    def coords_to_rowcol(self, x, y):
+        """Convert LV95 coordinates to (row, col) grid indices."""
+        col = int((x - self.xllcorner) / self.cellsize)
+        row = self.rows - 1 - int((y - self.yllcorner) / self.cellsize)
+        return (row, col)
 
     def _load_asc(self, asc_file):
 
