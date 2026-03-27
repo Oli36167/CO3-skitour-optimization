@@ -190,7 +190,7 @@ if __name__ == "__main__":
     waypoints = [
         terrain.coords_to_rowcol(781134, 207508),
         terrain.coords_to_rowcol(777813, 203057),
-        terrain.coords_to_rowcol(783608, 201194),
+        terrain.coords_to_rowcol(784498, 206477),
         terrain.coords_to_rowcol(778531, 207693),
     ]
 
