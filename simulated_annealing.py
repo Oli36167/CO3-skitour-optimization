@@ -7,13 +7,14 @@ from python_tsp.exact import solve_tsp_brute_force
 from terrain_graph import TerrainGraph
 
 """
-SA + Dijkstra for computing paths
+SA + A* for computing paths
 """
 
 
-def dijkstra(terrain, start, goal, padding=100):
+def astar(terrain, start, goal, padding=100):
     """
-    Dijkstra restricted to a bounding box around start and goal.
+    A* restricted to a bounding box around start and goal.
+    Heuristic: straight-line distance / max possible speed (admissible).
     padding = extra cells around the bounding box.
     """
     r_min = max(0,              min(start[0], goal[0]) - padding)
@@ -25,22 +26,32 @@ def dijkstra(terrain, start, goal, padding=100):
         r, c = node
         return r_min <= r <= r_max and c_min <= c <= c_max
 
-    pq = [(0, start)]
-    best_cost = {start: 0}
+    max_speed = 40 / 3.6  # m/s — fastest possible travel (max downhill)
+    cs = terrain.cellsize
+
+    def h(node):
+        dr = (node[0] - goal[0]) * cs
+        dc = (node[1] - goal[1]) * cs
+        return math.sqrt(dr * dr + dc * dc) / max_speed
+
+    pq = [(h(start), 0.0, start)]
+    best_g = {start: 0.0}
     came_from = {start: None}
 
     while pq:
-        current_cost, current = heapq.heappop(pq)
+        _, g, current = heapq.heappop(pq)
         if current == goal:
             break
+        if g > best_g.get(current, float("inf")):
+            continue  # stale heap entry
         for neighbor, edge_cost in terrain.get_neighbors(current):
-            if not in_bounds(neighbor):   # ← skip nodes outside box
+            if not in_bounds(neighbor):
                 continue
-            new_cost = current_cost + edge_cost
-            if neighbor not in best_cost or new_cost < best_cost[neighbor]:
-                best_cost[neighbor] = new_cost
+            new_g = g + edge_cost
+            if new_g < best_g.get(neighbor, float("inf")):
+                best_g[neighbor] = new_g
                 came_from[neighbor] = current
-                heapq.heappush(pq, (new_cost, neighbor))
+                heapq.heappush(pq, (new_g + h(neighbor), new_g, neighbor))
 
     if goal not in came_from:
         return None, float("inf")
@@ -50,7 +61,7 @@ def dijkstra(terrain, start, goal, padding=100):
         path.append(node)
         node = came_from[node]
     path.reverse()
-    return path, best_cost.get(goal, float("inf"))
+    return path, best_g.get(goal, float("inf"))
 
 
 
@@ -69,8 +80,8 @@ def build_distance_matrix(terrain, locations):
                        abs(locations[i][1] - locations[j][1]))
             padding = max(50, span // 2)   # at least 50, half the span
 
-            path, cost = dijkstra(terrain, locations[i],
-                                         locations[j], padding=padding)
+            path, cost = astar(terrain, locations[i],
+                                       locations[j], padding=padding)
             matrix[i, j]  = cost if cost != float("inf") else 1e9
             cache[(i, j)] = (cost, path if path else [])
             print(f"  {i}→{j}  cost={cost:.0f}s  padding={padding}")
@@ -174,4 +185,4 @@ if __name__ == "__main__":
     sa_path = reconstruct_full_path(sa_ordering, cache,
                                     start_idx=0, end_idx=n - 1)
     plot_route(terrain, sa_path, locations,
-               title=f"SA Route — {sa_h}h {sa_m}min  (gap {gap:.1f}%)")
+               title=f"SA Route — {sa_h}h {sa_m}min")

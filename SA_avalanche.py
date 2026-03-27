@@ -1,11 +1,11 @@
-'''
+"""
 SA + A*
 two cost function:
 - travel time (what we had until now)
 - avalanche risk (degrees)
 with adjustable weights time and risk
 => makes combinatory problem more difficult
-'''
+"""
 
 
 import random
@@ -15,18 +15,6 @@ import time
 import matplotlib.pyplot as plt
 import numpy as np
 from terrain_graph import TerrainGraph
-
-def evaluate_path(terrain, path):
-    total_time = 0.0
-    total_risk = 0.0
-    for i in range(len(path) - 1):
-        u, v   = path[i], path[i+1]
-        cost   = terrain.edge_cost(u, v)
-        angle  = abs(terrain._slope_angle(u, v))
-        total_time += 10_000_000.0 if cost == float("inf") else cost
-        if angle > 30:
-            total_risk += (angle - 30) ** 2
-    return total_time / 3600, total_risk
 
 def crop_terrain(terrain, locations, padding=80):
     """Crop terrain data to bounding box of all locations."""
@@ -47,12 +35,24 @@ def crop_terrain(terrain, locations, padding=80):
     return terrain, new_locations
 
 
-def astar(terrain, start, goal):
-    """A* on the (already cropped) terrain — no bounding box needed."""
+def astar(terrain, start, goal, padding=100):
+    """A* with a bounding box around start and goal."""
+    r_min = max(0,              min(start[0], goal[0]) - padding)
+    r_max = min(terrain.rows-1, max(start[0], goal[0]) + padding)
+    c_min = max(0,              min(start[1], goal[1]) - padding)
+    c_max = min(terrain.cols-1, max(start[1], goal[1]) + padding)
+
+    def in_bounds(node):
+        r, c = node
+        return r_min <= r <= r_max and c_min <= c <= c_max
+
+    cs = terrain.cellsize
+    max_speed = 40 / 3.6
+
     def heuristic(node):
-        dr = abs(node[0] - goal[0]) * terrain.cellsize
-        dc = abs(node[1] - goal[1]) * terrain.cellsize
-        return math.sqrt(dr**2 + dc**2) / (40/3.6)
+        dr = (node[0] - goal[0]) * cs
+        dc = (node[1] - goal[1]) * cs
+        return math.sqrt(dr * dr + dc * dc) / max_speed
 
     pq        = [(heuristic(start), 0.0, start)]
     best_cost = {start: 0.0}
@@ -65,7 +65,7 @@ def astar(terrain, start, goal):
         if cc > best_cost.get(cur, float("inf")):
             continue
         for nb, cost in terrain.get_neighbors(cur):
-            if cost == float("inf"):
+            if cost == float("inf") or not in_bounds(nb):
                 continue
             nc = cc + cost
             if nc < best_cost.get(nb, float("inf")):
@@ -87,12 +87,12 @@ def evaluate_path(terrain, path):
     total_time = 0.0
     total_risk = 0.0
     for i in range(len(path) - 1):
-        u, v   = path[i], path[i+1]
-        cost   = terrain.edge_cost(u, v)
-        angle  = abs(terrain._slope_angle(u, v))
+        u, v  = path[i], path[i+1]
+        angle = terrain._slope_angle(u, v)
+        cost  = terrain.edge_cost(u, v)
         total_time += 10_000_000.0 if cost == float("inf") else cost
-        if angle > 30:
-            total_risk += (angle - 30) ** 2
+        if abs(angle) > 30:
+            total_risk += (abs(angle) - 30) ** 2
     return total_time / 3600, total_risk
 
 
