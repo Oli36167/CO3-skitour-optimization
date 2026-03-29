@@ -1,8 +1,10 @@
 import math
 import random
 
+from joblib import Parallel, delayed
 
-def safe_random_path(terrain, start, goal, max_steps=20000):
+
+def safe_random_path(terrain, start, goal, max_steps=10000):
     """Generate a feasible path from start to goal (not necessarily straight)."""
     path = [start]
     current = start
@@ -60,76 +62,117 @@ def path_cost(terrain, path):
     return total
 
 
-def mutate_path(terrain, path):
-    """Mutate a large segment of the path using stochastic but valid moves."""
-    if len(path) < 5:
+# -----------------------------------------
+
+
+def mutate_segment(terrain, path, i, j):
+    start_node = path[i - 1]
+    end_node = path[j]
+
+    new_segment = [start_node]
+    current = start_node
+    max_steps = (j - i) * 3  # reduced from 5
+
+    for _ in range(max_steps):
+        if current == end_node:
+            return new_segment
+
+        neighbors = terrain.get_neighbors(current)
+
+        valid = []
+        for n, c in neighbors:
+            if math.isfinite(c):
+                valid.append(n)
+
+        if not valid:
+            return None
+
+        # ⚡ FAST: no sorting, just pick best of small sample
+        best = None
+        best_dist = float("inf")
+
+        sample = random.sample(valid, min(4, len(valid)))
+
+        for n in sample:
+            d = abs(n[0] - end_node[0]) + abs(n[1] - end_node[1])
+            if d < best_dist:
+                best = n
+                best_dist = d
+
+        # small randomness
+        if random.random() < 0.8:
+            next_node = best
+        else:
+            next_node = random.choice(valid)
+
+        if next_node in new_segment:
+            continue
+
+        new_segment.append(next_node)
+        current = next_node
+
+    return None
+
+
+def mutate_path(terrain, path, T, T0):
+    n = len(path)
+    if n < 10:
         return path
 
-    for attempt in range(5):  # try a few times to get a valid segment
-        # pick a large segment
-        i = random.randint(1, len(path) // 2)
-        j = random.randint(i + len(path) // 5, len(path) - 1)
+    # -------------------------------
+    # segment size (annealed)
+    # -------------------------------
+    frac = T / T0
 
-        start_node = path[i - 1]
-        end_node = path[j]
+    max_len = int(n * (0.4 * frac + 0.1))
+    min_len = int(n * 0.05)
 
-        # rebuild segment
-        new_segment = [start_node]
-        current = start_node
-        max_steps = (j - i) * 40  # allow 5x longer segment
+    seg_len = random.randint(min_len, max_len)
 
-        for _ in range(max_steps):
-            if current == end_node:
-                break
+    i = random.randint(1, n - seg_len - 1)
+    j = i + seg_len
 
-            neighbors = list(terrain.get_neighbors(current))
-            valid_neighbors = [
-                (n, c) for (n, c) in neighbors if math.isfinite(c)
-            ]
-            if not valid_neighbors:
-                break
+    # -------------------------------
+    # number of candidates (adaptive)
+    # -------------------------------
+    if frac > 0.5:
+        num_candidates = 3  # early: explore
+    else:
+        num_candidates = 2  # late: faster
 
-            neighbors_sorted = sorted(
-                valid_neighbors,
-                key=lambda x: abs(x[0][0] - end_node[0])
-                + abs(x[0][1] - end_node[1]),
-            )
-            if random.random() < 0.7:
-                next_node = neighbors_sorted[0][0]
-            else:
-                next_node = random.choice(neighbors_sorted[:5])[0]
+    best_candidate = path
+    best_cost = float("inf")
 
-            if next_node in new_segment:
-                continue
+    for _ in range(num_candidates):
+        segment = mutate_segment(terrain, path, i, j)
 
-            new_segment.append(next_node)
-            current = next_node
+        if segment is None:
+            continue
 
-        # only accept if segment reaches the intended end
-        if new_segment[-1] != end_node:
-            continue  # retry mutation
+        candidate = path[:i] + segment[1:] + path[j + 1 :]
+        cost = path_cost(terrain, candidate)
 
-        # stitch new segment into path (avoid duplicating start_node)
-        new_path = path[:i] + new_segment[1:] + path[j + 1 :]
-        return new_path
+        if cost < best_cost:
+            best_candidate = candidate
+            best_cost = cost
 
-    return path  # fallback if all attempts fail
+            # ⚡ early exit if improvement
+            if cost < path_cost(terrain, path):
+                return best_candidate
+
+    return best_candidate
 
 
-# --------------------------------------------------
-# Simulated Annealing
-# --------------------------------------------------
 def simulated_annealing(
-    terrain, start, goal, T0=5000, alpha=0.999, iterations=2000
+    terrain, start, goal, T0=4000, alpha=0.998, iterations=2000
 ):
-    """Main SA algorithm."""
 
-    # ---- initial valid path (no randomness anymore) ----
-    current = safe_random_path(terrain, start, goal)
+    initial_path = safe_random_path(terrain, start, goal)
 
-    if current is None:
+    if initial_path is None:
         raise ValueError("Could not find initial valid path")
 
+    current = initial_path
     current_cost = path_cost(terrain, current)
 
     best = current
@@ -138,7 +181,7 @@ def simulated_annealing(
     T = T0
 
     for k in range(iterations):
-        candidate = mutate_path(terrain, current)
+        candidate = mutate_path(terrain, current, T, T0)
         candidate_cost = path_cost(terrain, candidate)
 
         if not math.isfinite(candidate_cost):
@@ -146,7 +189,6 @@ def simulated_annealing(
 
         delta = candidate_cost - current_cost
 
-        # SA acceptance rule
         if delta < 0 or random.random() < math.exp(-delta / T):
             current = candidate
             current_cost = candidate_cost
@@ -160,4 +202,7 @@ def simulated_annealing(
         if k % 200 == 0:
             print(f"Iter {k}, Temp {T:.2f}, Cost {best_cost:.0f}")
 
-    return best, best_cost
+    return best, best_cost, initial_path
+
+
+# -----------------------------------------
