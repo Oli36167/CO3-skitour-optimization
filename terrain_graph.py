@@ -36,13 +36,13 @@ class TerrainGraph:
 
         # default cost model
         self.angle_cost = uphill_cost or {
-            (-90, -44.9): float("inf"),
-            (-44.9,   0): 0.6,  # people will downclimb unless they are pros
+            (-90, -45): float("inf"),
+            (-45,   0): 0.6,  # people will downclimb unless they are pros
             (0, 25): 1.0,  # baseline speed for 0-25 degree slopes
             (25, 30): 1.4,
             (30, 35): 1.8,
-            (35, 44.9): 2.5,
-            (44.9, 90): float("inf"),
+            (35, 45): 2.5,
+            (45, 90): float("inf"),
         }
 
     # fmt: on
@@ -138,7 +138,6 @@ class TerrainGraph:
     def _descent_speed(self, angle):
         v_max = 40 / 3.6  # max dh speed in m/s
         v_min = 4 / 3.6  # min dh speed in m/s
-        # angle = np.clip(np.abs(angle), 0, 45)
         if abs(angle) > 45:
             return 0.0
 
@@ -157,6 +156,13 @@ class TerrainGraph:
         Compute travel cost from node_from to node_to.
         Edges with slope > 45° are impassable (inf).
         """
+
+        row_from, col_from = node_from
+        row_to, col_to = node_to
+
+        # 🚨 enforce adjacency
+        if max(abs(row_from - row_to), abs(col_from - col_to)) > 1:
+            return float("inf")
 
         # check if either end is too steep
         start_slope = self.slope_deg[node_from]
