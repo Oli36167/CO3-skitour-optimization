@@ -137,7 +137,8 @@ class TerrainGraph:
 
     def _descent_speed(self, angle):
         v_max = 40 / 3.6  # max dh speed in m/s
-        v_min = 1e-3  # prevent for division / 0
+        v_min = 4 / 3.6  # v_min = horizontal speed
+        # v_min = 1e-3  # prevent for division / 0
         if abs(angle) > 45:
             return 0.0
 
