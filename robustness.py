@@ -403,7 +403,7 @@ def robustness_test(terrain, start, goal, route_name, seeds):
 
 
 if __name__ == "__main__":
-    FILE_NAME = "DHM25_subset_2.asc"
+    FILE_NAME = "DHM25_subset_stantoenien.asc"
     X, Y, Z = load_elevation_data(FILE_NAME)
     terrain = TerrainGraph(FILE_NAME)
 
