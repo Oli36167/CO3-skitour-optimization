@@ -22,13 +22,13 @@ terrain = TerrainGraph(FILE_NAME)
 start_node = (1, 1)
 goal_nodes = [
     (100, 100),
-    (200, 200),
-    (400, 400),
-    (600, 600),
-    (800, 800),
-    (1000, 1000),
-    (1200, 1200),
-    (1400, 1400),
+    #     (200, 200),
+    #     (400, 400),
+    #     (600, 600),
+    #     (800, 800),
+    #     (1000, 1000),
+    #     (1200, 1200),
+    #     (1400, 1400),
 ]
 
 # -------------------------------
@@ -187,12 +187,14 @@ for ax in axes:
         cmap="gray",
         origin="upper",
         extent=[0, x_max, y_max, 0],  # [xmin, xmax, ymax, ymin]
+        rasterized=True,
     )
 
     ax.imshow(
         slope_overlay,
         origin="upper",
         extent=[0, x_max, y_max, 0],
+        rasterized=True,
     )
 
     contour_levels = np.arange(np.min(Z), np.max(Z) + 100, 100)
@@ -273,6 +275,6 @@ plt.tight_layout()
 
 # Save plot
 full_path = os.path.join(SAVE_DIR, FILE_NAME)
-fig.savefig(full_path, dpi=300, bbox_inches="tight")
+fig.savefig(full_path, dpi=100, bbox_inches="tight")
 print(f"Plot saved to: {full_path}")
 plt.show()
