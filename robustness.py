@@ -91,10 +91,12 @@ def compute_stats(results, opt_cost):
     worst = max(costs)
     std = (sum((c - avg) ** 2 for c in costs) / len(costs)) ** 0.5
     ratio = avg / opt_cost if opt_cost > 0 else float("inf")
+    std_ratio = std / opt_cost if opt_cost > 0 else float("inf")
     avg_time = sum(r["time_s"] for r in valid) / len(valid)
     avg_improve = sum(r["improvement"] for r in valid) / len(valid)
     return {
         "avg": avg, "best": best, "worst": worst, "std": std,
+        "std_ratio": std_ratio,
         "ratio": ratio, "avg_improve": avg_improve, "avg_time": avg_time,
         "valid": len(valid), "total": len(results),
     }
@@ -215,7 +217,7 @@ def save_results_table(all_route_stats, filename="robustness_results.csv"):
     """Save all sweep results across all routes to a single CSV table."""
     fieldnames = [
         "Route", "Parameter", "Value", "Avg Cost", "Best Cost", "Worst Cost",
-        "Std", "Ratio to Optimal", "Avg Improvement", "Avg Time (s)",
+        "Std", "Std Ratio", "Ratio to Optimal", "Avg Improvement", "Avg Time (s)",
         "Valid Runs", "Total Runs", "Dijkstra Optimal",
     ]
     rows = []
@@ -229,6 +231,7 @@ def save_results_table(all_route_stats, filename="robustness_results.csv"):
                 "Best Cost": f"{s['best']:.1f}",
                 "Worst Cost": f"{s['worst']:.1f}",
                 "Std": f"{s['std']:.1f}",
+                "Std Ratio": f"{s['std_ratio']:.4f}",
                 "Ratio to Optimal": f"{s['ratio']:.3f}",
                 "Avg Improvement": f"{s['avg_improve']:.1%}",
                 "Avg Time (s)": f"{s['avg_time']:.2f}",
@@ -285,7 +288,7 @@ def fixed_param_robustness(terrain, routes, seeds):
                 "dijkstra_optimal": d["opt_cost"],
                 "cost_ratio": ratio,
             })
-    with open("robustness_fixed_params_per_seed.csv", "w", newline="") as f:
+    with open("results_csv/robustness_fixed_params_per_seed.csv", "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=["route", "seed", "dijkstra_optimal", "cost_ratio"])
         writer.writeheader()
         writer.writerows(per_seed_rows)
@@ -325,14 +328,14 @@ def fixed_param_robustness(terrain, routes, seeds):
         "route", "dijkstra_optimal", "avg_ratio", "std_ratio", "cv",
         "best_ratio", "worst_ratio", "valid_runs", "total_runs",
     ]
-    with open("robustness_fixed_params_summary.csv", "w", newline="") as f:
+    with open("results_csv/robustness_fixed_params_summary.csv", "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=summary_fieldnames)
         writer.writeheader()
         writer.writerows(summary_rows)
     print("  Summary saved to robustness_fixed_params_summary.csv")
 
     # Save cross-route comparison to CSV
-    with open("robustness_fixed_params_cross_route.csv", "w", newline="") as f:
+    with open("results_csv/robustness_fixed_params_cross_route.csv", "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=[
             "metric", "value",
         ])
@@ -375,7 +378,7 @@ def fixed_param_robustness(terrain, routes, seeds):
         for seed in seeds:
             curves.append(convergence_curve(terrain, start, goal, opt_cost, seed))
         all_route_curves[route_name] = curves
-    plot_convergence(all_route_curves, filename="convergence_all_routes.png")
+    plot_convergence(all_route_curves, filename="results_plots/convergence_all_routes.png")
 
     return route_data
 
