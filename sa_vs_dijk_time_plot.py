@@ -6,7 +6,7 @@ import numpy as np
 from dijkstra_terrain_graph import dijkstra
 from load_elevation_data import load_elevation_data
 from matplotlib.ticker import FixedLocator
-from simulated_annealing_a_to_b import simulated_annealing
+from simulated_annealing_a_to_b import path_cost, simulated_annealing
 from terrain_graph import TerrainGraph
 
 # -------------------------------
@@ -22,13 +22,14 @@ terrain = TerrainGraph(FILE_NAME)
 start_node = (1, 1)
 goal_nodes = [
     (100, 100),
-    #     (200, 200),
-    #     (400, 400),
-    #     (600, 600),
-    #     (800, 800),
-    #     (1000, 1000),
-    #     (1200, 1200),
-    #     (1400, 1400),
+    (200, 200),
+    (400, 400),
+    (600, 600),
+    (800, 800),
+    (1000, 1000),
+    (1200, 1200),
+    (1400, 1400),
+    (1500, 1500),
 ]
 
 # -------------------------------
@@ -39,6 +40,7 @@ dij_times = []
 sa_times = []
 dij_cost = []
 sa_cost = []
+sa_initial_path_cost = []
 
 dij_paths = {}
 sa_paths = {}
@@ -70,7 +72,7 @@ for goal_node in goal_nodes:
 
     # ---------------- SA ----------------
     t0 = time.time()
-    path_sa, best_cost_sa, _ = simulated_annealing(
+    path_sa, best_cost_sa, initial_path = simulated_annealing(
         terrain, start_node, goal_node
     )
     t1 = time.time()
@@ -90,7 +92,23 @@ for goal_node in goal_nodes:
     sa_times.append(sa_time)
     dij_cost.append(best_cost_d)
     sa_cost.append(best_cost_sa)
+    sa_initial_path_cost.append(path_cost(terrain, initial_path))
 
+
+# global plot settings:
+plt.rcParams["font.family"] = "serif"
+plt.rcParams["mathtext.fontset"] = "cm"
+
+plt.rcParams.update(
+    {
+        "font.size": 16,
+        "axes.titlesize": 16,
+        "axes.labelsize": 16,
+        "legend.fontsize": 16,
+        "xtick.labelsize": 16,
+        "ytick.labelsize": 16,
+    }
+)
 
 # -------------------------------
 # Plot comparison (2 panels)
@@ -110,24 +128,177 @@ sa_time_m = [x / 60 for x in sa_times]
 
 dij_cost_h = [x / 3600 for x in dij_cost]
 sa_cost_h = [x / 3600 for x in sa_cost]
+sa_initial_path_cost_h = [x / 3600 for x in sa_initial_path_cost]
+
+
+def linreg(x, y, deg, num_points=200):
+    coeffs = np.polyfit(x, y, deg)
+    x_fit = np.linspace(min(x), max(x), num_points)
+    y_fit = np.polyval(coeffs, x_fit)
+    return coeffs, x_fit, y_fit
+
+
+coeffs_dij_comp, x_fit_dij_comp, y_fit_dij_comp = linreg(
+    distances_km, dij_time_m, 2
+)
+
+coeffs_sa_comp, x_fit_sa_comp, y_fit_sa_comp = linreg(
+    distances_km, sa_time_m, 1
+)
+coeffs_dij_cost, x_fit_dij_cost, y_fit_dij_cost = linreg(
+    distances_km, dij_cost_h, 1
+)
+coeffs_sa_cost, x_fit_sa_cost, y_fit_sa_cost = linreg(
+    distances_km, sa_cost_h, 1
+)
+
+coeffs_sa_initial_cost, x_fit_sa_initial_cost, y_fit_sa_initial_cost = linreg(
+    distances_km, sa_initial_path_cost_h, 1
+)
+
 
 # ---- LEFT: computation time ----
-axes[0].plot(distances_km, dij_time_m, marker="o", label="Dijkstra")
-axes[0].plot(distances_km, sa_time_m, marker="s", label="Simulated Annealing")
+axes[0].scatter(
+    distances_km,
+    dij_time_m,
+    marker="o",
+)
+
+# dij ------------
+axes[0].scatter(
+    distances_km,
+    sa_time_m,
+    marker="o",
+    color="tab:blue",
+)
+# Plot fitted line
+axes[0].plot(
+    x_fit_dij_comp,
+    y_fit_dij_comp,
+    linestyle="-",
+    color="tab:blue",
+)
+
+# adding the legend
+axes[0].plot(
+    [],
+    [],
+    linestyle="--",
+    marker="s",
+    color="tab:orange",
+    label=f"SA: y = {coeffs_sa_comp[0]:.2f}x + {coeffs_sa_comp[1]:.2f}",
+)
+
+# adding the legend
+a, b, c = coeffs_dij_comp
+axes[0].plot(
+    [],
+    [],
+    linestyle="-",
+    marker="o",
+    color="tab:blue",
+    label=f"Dijkstra: y = {a:.2f}x² + {b:.2f}x + {c:.2f}",
+)
+
+# SA ------------
+axes[0].scatter(
+    distances_km,
+    sa_time_m,
+    marker="s",
+    color="tab:orange",
+)
+# Plot fitted line
+axes[0].plot(
+    x_fit_sa_comp,
+    y_fit_sa_comp,
+    linestyle="--",
+    color="tab:orange",
+)
+
 
 axes[0].set_xlabel("Distance / km")
 axes[0].set_ylabel("Computation Time / min")
 axes[0].grid(True)
-axes[0].legend()
+axes[0].legend(loc="upper left")
 
 # ---- RIGHT: path cost ----
-axes[1].plot(distances_km, dij_cost_h, marker="o", label="Dijkstra")
-axes[1].plot(distances_km, sa_cost_h, marker="s", label="Simulated Annealing")
+axes[1].scatter(distances_km, dij_cost_h, marker="o")
+axes[1].scatter(
+    distances_km,
+    sa_cost_h,
+    marker="s",
+)
+
+# SA Cost path
+# Plot fitted line
+axes[1].plot(
+    x_fit_sa_cost,
+    y_fit_sa_cost,
+    linestyle="--",
+    color="tab:orange",
+)
+
+# SA Cost initial path
+axes[1].scatter(
+    distances_km,
+    sa_initial_path_cost_h,
+    marker="v",
+    color="tab:gray",
+)
+# Plot fitted line
+axes[1].plot(
+    x_fit_sa_initial_cost,
+    y_fit_sa_initial_cost,
+    linestyle="-.",
+    color="tab:gray",
+)
+
+m, b = coeffs_sa_initial_cost
+# adding the legend
+axes[1].plot(
+    [],
+    [],
+    linestyle="-.",
+    marker="v",
+    color="tab:gray",
+    label=f"SA initial: y = {m:.2f}x + {b:.2f}",
+)
+
+# adding the legend
+axes[1].plot(
+    [],
+    [],
+    linestyle="--",
+    marker="s",
+    color="tab:orange",
+    label=f"SA: y = {coeffs_sa_cost[0]:.2f}x + {coeffs_sa_cost[1]:.2f}",
+)
+
+# adding the legend
+axes[1].plot(
+    [],
+    [],
+    linestyle="-",
+    marker="o",
+    color="tab:blue",
+    label=f"Dijkstra: y = {coeffs_dij_cost[0]:.2f}x + {coeffs_dij_cost[1]:.2f}",
+)
+
+
+# dij Cost path
+# Plot fitted line
+axes[1].plot(
+    x_fit_dij_cost,
+    y_fit_dij_cost,
+    linestyle="-",
+    color="tab:blue",
+)
+
 
 axes[1].set_xlabel("Distance / km")
 axes[1].set_ylabel("Travel Time / h")
 axes[1].grid(True)
-axes[1].legend()
+axes[1].legend(loc="upper left")
 
 plt.tight_layout()
 
@@ -216,7 +387,7 @@ for ax in axes:
     ax.set_ylabel("Distance / km")
 
 # ---------- Dijkstra ----------
-axes[0].set_title("Dijkstra Paths")
+axes[0].set_title("Dijkstra's Algorithm")
 
 for goal_node, path_d in dij_paths.items():
 
@@ -238,7 +409,7 @@ for goal_node, path_d in dij_paths.items():
 axes[0].legend(title="Goal", fontsize=8, loc="upper right")
 
 # ---------- Simulated Annealing ----------
-axes[1].set_title("Simulated Annealing Paths")
+axes[1].set_title("Simulated Annealing")
 
 for goal_node, path_sa in sa_paths.items():
 
@@ -257,7 +428,7 @@ for goal_node, path_sa in sa_paths.items():
     axes[1].scatter(x_coords[0], y_coords[0], color="green", s=60)
     axes[1].scatter(x_coords[-1], y_coords[-1], color="blue", s=60)
 
-axes[1].legend(title="Goal", fontsize=8, loc="upper right")
+axes[1].legend(fontsize=8, loc="upper right")
 
 
 tick_step = 5  # km
