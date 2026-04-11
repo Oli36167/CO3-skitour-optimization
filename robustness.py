@@ -39,9 +39,8 @@ from collections import defaultdict
 
 import matplotlib.pyplot as plt
 import numpy as np
-from joblib import Parallel, delayed
-
 from dijkstra_terrain_graph import dijkstra
+from joblib import Parallel, delayed
 from load_elevation_data import load_elevation_data
 from simulated_annealing_a_to_b import path_cost, simulated_annealing
 from terrain_graph import TerrainGraph
@@ -94,9 +93,15 @@ def compute_stats(results, opt_cost):
     avg_time = sum(r["time_s"] for r in valid) / len(valid)
     avg_improve = sum(r["improvement"] for r in valid) / len(valid)
     return {
-        "avg": avg, "best": best, "worst": worst, "std": std,
-        "ratio": ratio, "avg_improve": avg_improve, "avg_time": avg_time,
-        "valid": len(valid), "total": len(results),
+        "avg": avg,
+        "best": best,
+        "worst": worst,
+        "std": std,
+        "ratio": ratio,
+        "avg_improve": avg_improve,
+        "avg_time": avg_time,
+        "valid": len(valid),
+        "total": len(results),
     }
 
 
@@ -108,15 +113,26 @@ def sweep_one_param(terrain, start, goal, opt_cost, param_name, values, seeds):
         alpha = val if param_name == "alpha" else DEFAULT_ALPHA
         iters = val if param_name == "iterations" else DEFAULT_ITERS
         results = Parallel(n_jobs=-1)(
-            delayed(run_single_trial)(terrain, start, goal, T0, alpha, iters, seed)
+            delayed(run_single_trial)(
+                terrain, start, goal, T0, alpha, iters, seed
+            )
             for seed in seeds
         )
         for seed, r in zip(seeds, results):
-            ratio = r["cost"] / opt_cost if r["valid"] and opt_cost > 0 else float("inf")
-            raw_results.append({
-                "param_name": param_name, "param_value": val,
-                "seed": seed, "ratio": ratio, "valid": r["valid"],
-            })
+            ratio = (
+                r["cost"] / opt_cost
+                if r["valid"] and opt_cost > 0
+                else float("inf")
+            )
+            raw_results.append(
+                {
+                    "param_name": param_name,
+                    "param_value": val,
+                    "seed": seed,
+                    "ratio": ratio,
+                    "valid": r["valid"],
+                }
+            )
         stats = compute_stats(results, opt_cost)
         if stats:
             stats["param_name"] = param_name
@@ -125,12 +141,19 @@ def sweep_one_param(terrain, start, goal, opt_cost, param_name, values, seeds):
     return sweep_results, raw_results
 
 
-def convergence_curve(terrain, start, goal, opt_cost, seed, max_iters=4000, step=200):
+def convergence_curve(
+    terrain, start, goal, opt_cost, seed, max_iters=4000, step=200
+):
     random.seed(seed)
     try:
         _, _, _, history = simulated_annealing(
-            terrain, start, goal, T0=DEFAULT_T0, alpha=DEFAULT_ALPHA,
-            iterations=max_iters, snapshot_interval=step,
+            terrain,
+            start,
+            goal,
+            T0=DEFAULT_T0,
+            alpha=DEFAULT_ALPHA,
+            iterations=max_iters,
+            snapshot_interval=step,
         )
         return [
             {"iterations": h["iteration"], "ratio": h["cost"] / opt_cost}
@@ -157,13 +180,27 @@ def plot_convergence(route_curves, filename="convergence.png"):
         all_iters = [p["iterations"] for p in valid_curves[0]]
         avg_ratios = []
         for step_idx in range(len(all_iters)):
-            vals = [c[step_idx]["ratio"] for c in valid_curves
-                    if step_idx < len(c) and c[step_idx]["ratio"] < float("inf")]
+            vals = [
+                c[step_idx]["ratio"]
+                for c in valid_curves
+                if step_idx < len(c) and c[step_idx]["ratio"] < float("inf")
+            ]
             avg_ratios.append(sum(vals) / len(vals) if vals else float("inf"))
-        ax.plot(all_iters[:len(avg_ratios)], avg_ratios, linewidth=2.5,
-                label=route_name, color=color)
+        ax.plot(
+            all_iters[: len(avg_ratios)],
+            avg_ratios,
+            linewidth=2.5,
+            label=route_name,
+            color=color,
+        )
 
-    ax.axhline(y=1.0, color="black", linestyle="--", alpha=0.5, label="Dijkstra optimal")
+    ax.axhline(
+        y=1.0,
+        color="black",
+        linestyle="--",
+        alpha=0.5,
+        label="Dijkstra optimal",
+    )
     ax.set_xlabel("Iterations")
     ax.set_ylabel("Cost / Dijkstra Optimal")
     ax.set_title("SA Convergence by Route")
@@ -181,7 +218,9 @@ def plot_parameter_boxplots(all_raw, route_name, filename="boxplots.png"):
         grouped[r["param_name"]].append(r)
 
     param_names = list(grouped.keys())
-    fig, axes = plt.subplots(1, len(param_names), figsize=(5 * len(param_names), 5))
+    fig, axes = plt.subplots(
+        1, len(param_names), figsize=(5 * len(param_names), 5)
+    )
     if len(param_names) == 1:
         axes = [axes]
 
@@ -190,15 +229,26 @@ def plot_parameter_boxplots(all_raw, route_name, filename="boxplots.png"):
         values = sorted(set(e["param_value"] for e in entries))
         data = []
         for val in values:
-            ratios = [e["ratio"] for e in entries
-                      if e["param_value"] == val and e["ratio"] < float("inf")]
+            ratios = [
+                e["ratio"]
+                for e in entries
+                if e["param_value"] == val and e["ratio"] < float("inf")
+            ]
             data.append(ratios)
 
-        bp = ax.boxplot(data, patch_artist=True, tick_labels=[str(v) for v in values])
+        bp = ax.boxplot(
+            data, patch_artist=True, tick_labels=[str(v) for v in values]
+        )
         for patch in bp["boxes"]:
             patch.set_facecolor("steelblue")
             patch.set_alpha(0.7)
-        ax.axhline(y=1.0, color="red", linestyle="--", alpha=0.5, label="Dijkstra optimal")
+        ax.axhline(
+            y=1.0,
+            color="red",
+            linestyle="--",
+            alpha=0.5,
+            label="Dijkstra optimal",
+        )
         ax.set_xlabel(param_name)
         ax.set_ylabel("Cost / Dijkstra Optimal")
         ax.legend(fontsize=8)
@@ -210,32 +260,43 @@ def plot_parameter_boxplots(all_raw, route_name, filename="boxplots.png"):
     print(f"  Boxplot saved to {filename}")
 
 
-
 def save_results_table(all_route_stats, filename="robustness_results.csv"):
     """Save all sweep results across all routes to a single CSV table."""
     fieldnames = [
-        "Route", "Parameter", "Value", "Avg Cost", "Best Cost", "Worst Cost",
-        "Std", "Ratio to Optimal", "Avg Improvement", "Avg Time (s)",
-        "Valid Runs", "Total Runs", "Dijkstra Optimal",
+        "Route",
+        "Parameter",
+        "Value",
+        "Avg Cost",
+        "Best Cost",
+        "Worst Cost",
+        "Std",
+        "Ratio to Optimal",
+        "Avg Improvement",
+        "Avg Time (s)",
+        "Valid Runs",
+        "Total Runs",
+        "Dijkstra Optimal",
     ]
     rows = []
     for route_name, (opt_cost, stats) in all_route_stats.items():
         for s in stats:
-            rows.append({
-                "Route": route_name,
-                "Parameter": s["param_name"],
-                "Value": s["param_value"],
-                "Avg Cost": f"{s['avg']:.1f}",
-                "Best Cost": f"{s['best']:.1f}",
-                "Worst Cost": f"{s['worst']:.1f}",
-                "Std": f"{s['std']:.1f}",
-                "Ratio to Optimal": f"{s['ratio']:.3f}",
-                "Avg Improvement": f"{s['avg_improve']:.1%}",
-                "Avg Time (s)": f"{s['avg_time']:.2f}",
-                "Valid Runs": s["valid"],
-                "Total Runs": s["total"],
-                "Dijkstra Optimal": f"{opt_cost:.1f}",
-            })
+            rows.append(
+                {
+                    "Route": route_name,
+                    "Parameter": s["param_name"],
+                    "Value": s["param_value"],
+                    "Avg Cost": f"{s['avg']:.1f}",
+                    "Best Cost": f"{s['best']:.1f}",
+                    "Worst Cost": f"{s['worst']:.1f}",
+                    "Std": f"{s['std']:.1f}",
+                    "Ratio to Optimal": f"{s['ratio']:.3f}",
+                    "Avg Improvement": f"{s['avg_improve']:.1%}",
+                    "Avg Time (s)": f"{s['avg_time']:.2f}",
+                    "Valid Runs": s["valid"],
+                    "Total Runs": s["total"],
+                    "Dijkstra Optimal": f"{opt_cost:.1f}",
+                }
+            )
 
     with open(filename, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
@@ -251,7 +312,13 @@ def fixed_param_robustness(terrain, routes, seeds):
         _, opt_cost = dijkstra(terrain, start, goal)
         results = Parallel(n_jobs=-1)(
             delayed(run_single_trial)(
-                terrain, start, goal, DEFAULT_T0, DEFAULT_ALPHA, DEFAULT_ITERS, seed
+                terrain,
+                start,
+                goal,
+                DEFAULT_T0,
+                DEFAULT_ALPHA,
+                DEFAULT_ITERS,
+                seed,
             )
             for seed in seeds
         )
@@ -269,24 +336,34 @@ def fixed_param_robustness(terrain, routes, seeds):
         return route_data
 
     route_means = [np.mean(d["ratios"]) for d in reachable.values()]
-    cv_across_routes = np.std(route_means) / np.mean(route_means) if len(route_means) > 1 else 0
-    seed_cvs = [np.std(d["ratios"]) / np.mean(d["ratios"])
-                for d in reachable.values()
-                if len(d["ratios"]) > 1 and np.mean(d["ratios"]) > 0]
+    cv_across_routes = (
+        np.std(route_means) / np.mean(route_means)
+        if len(route_means) > 1
+        else 0
+    )
+    seed_cvs = [
+        np.std(d["ratios"]) / np.mean(d["ratios"])
+        for d in reachable.values()
+        if len(d["ratios"]) > 1 and np.mean(d["ratios"]) > 0
+    ]
     avg_seed_cv = np.mean(seed_cvs) if seed_cvs else 0
 
     # Save per-seed results to CSV
     per_seed_rows = []
     for route_name_key, d in route_data.items():
         for i, ratio in enumerate(d["ratios"]):
-            per_seed_rows.append({
-                "route": route_name_key,
-                "seed": seeds[i],
-                "dijkstra_optimal": d["opt_cost"],
-                "cost_ratio": ratio,
-            })
+            per_seed_rows.append(
+                {
+                    "route": route_name_key,
+                    "seed": seeds[i],
+                    "dijkstra_optimal": d["opt_cost"],
+                    "cost_ratio": ratio,
+                }
+            )
     with open("robustness_fixed_params_per_seed.csv", "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=["route", "seed", "dijkstra_optimal", "cost_ratio"])
+        writer = csv.DictWriter(
+            f, fieldnames=["route", "seed", "dijkstra_optimal", "cost_ratio"]
+        )
         writer.writeheader()
         writer.writerows(per_seed_rows)
     print("  Per-seed results saved to robustness_fixed_params_per_seed.csv")
@@ -298,32 +375,47 @@ def fixed_param_robustness(terrain, routes, seeds):
         avg = np.mean(ratios)
         std = np.std(ratios)
         cv = std / avg if avg > 0 else float("inf")
-        summary_rows.append({
-            "route": route_name_key,
-            "dijkstra_optimal": d["opt_cost"],
-            "avg_ratio": avg,
-            "std_ratio": std,
-            "cv": cv,
-            "best_ratio": min(ratios),
-            "worst_ratio": max(ratios),
-            "valid_runs": len(ratios),
-            "total_runs": len(seeds),
-        })
+        summary_rows.append(
+            {
+                "route": route_name_key,
+                "dijkstra_optimal": d["opt_cost"],
+                "avg_ratio": avg,
+                "std_ratio": std,
+                "cv": cv,
+                "best_ratio": min(ratios),
+                "worst_ratio": max(ratios),
+                "valid_runs": len(ratios),
+                "total_runs": len(seeds),
+            }
+        )
     # Append a summary row
-    summary_rows.append({
-        "route": "ALL_ROUTES",
-        "dijkstra_optimal": "",
-        "avg_ratio": np.mean(all_ratios),
-        "std_ratio": np.std(all_ratios),
-        "cv": np.std(all_ratios) / np.mean(all_ratios) if np.mean(all_ratios) > 0 else "",
-        "best_ratio": min(all_ratios),
-        "worst_ratio": max(all_ratios),
-        "valid_runs": len(all_ratios),
-        "total_runs": len(seeds) * len(routes),
-    })
+    summary_rows.append(
+        {
+            "route": "ALL_ROUTES",
+            "dijkstra_optimal": "",
+            "avg_ratio": np.mean(all_ratios),
+            "std_ratio": np.std(all_ratios),
+            "cv": (
+                np.std(all_ratios) / np.mean(all_ratios)
+                if np.mean(all_ratios) > 0
+                else ""
+            ),
+            "best_ratio": min(all_ratios),
+            "worst_ratio": max(all_ratios),
+            "valid_runs": len(all_ratios),
+            "total_runs": len(seeds) * len(routes),
+        }
+    )
     summary_fieldnames = [
-        "route", "dijkstra_optimal", "avg_ratio", "std_ratio", "cv",
-        "best_ratio", "worst_ratio", "valid_runs", "total_runs",
+        "route",
+        "dijkstra_optimal",
+        "avg_ratio",
+        "std_ratio",
+        "cv",
+        "best_ratio",
+        "worst_ratio",
+        "valid_runs",
+        "total_runs",
     ]
     with open("robustness_fixed_params_summary.csv", "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=summary_fieldnames)
@@ -333,17 +425,28 @@ def fixed_param_robustness(terrain, routes, seeds):
 
     # Save cross-route comparison to CSV
     with open("robustness_fixed_params_cross_route.csv", "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=[
-            "metric", "value",
-        ])
+        writer = csv.DictWriter(
+            f,
+            fieldnames=[
+                "metric",
+                "value",
+            ],
+        )
         writer.writeheader()
-        writer.writerows([
-            {"metric": "overall_avg_ratio", "value": np.mean(all_ratios)},
-            {"metric": "cv_across_routes", "value": cv_across_routes},
-            {"metric": "avg_cv_across_seeds", "value": avg_seed_cv},
-            {"metric": "route_choice_dominant", "value": cv_across_routes > avg_seed_cv},
-        ])
-    print("  Cross-route comparison saved to robustness_fixed_params_cross_route.csv")
+        writer.writerows(
+            [
+                {"metric": "overall_avg_ratio", "value": np.mean(all_ratios)},
+                {"metric": "cv_across_routes", "value": cv_across_routes},
+                {"metric": "avg_cv_across_seeds", "value": avg_seed_cv},
+                {
+                    "metric": "route_choice_dominant",
+                    "value": cv_across_routes > avg_seed_cv,
+                },
+            ]
+        )
+    print(
+        "  Cross-route comparison saved to robustness_fixed_params_cross_route.csv"
+    )
 
     # Boxplot: only reachable routes
     reachable_routes = [(n, s, g) for n, s, g in routes if n in reachable]
@@ -355,15 +458,21 @@ def fixed_param_robustness(terrain, routes, seeds):
     for patch, color in zip(bp["boxes"], colors):
         patch.set_facecolor(color)
         patch.set_alpha(0.7)
-    ax.axhline(y=1.0, color="red", linestyle="--", alpha=0.5, label="Dijkstra optimal")
+    ax.axhline(
+        y=1.0, color="red", linestyle="--", alpha=0.5, label="Dijkstra optimal"
+    )
     ax.set_ylabel("Cost / Dijkstra Optimal")
-    ax.set_title(f"Algorithm Robustness Across Routes "
-                 f"(T0={DEFAULT_T0}, α={DEFAULT_ALPHA}, iter={DEFAULT_ITERS})")
+    ax.set_title(
+        f"Algorithm Robustness Across Routes "
+        f"(T0={DEFAULT_T0}, α={DEFAULT_ALPHA}, iter={DEFAULT_ITERS})"
+    )
     ax.legend(fontsize=8)
     ax.grid(True, alpha=0.3, axis="y")
     plt.tight_layout()
     plt.savefig("robustness_fixed_params.png", dpi=150)
-    print("  Fixed-parameter robustness plot saved to robustness_fixed_params.png")
+    print(
+        "  Fixed-parameter robustness plot saved to robustness_fixed_params.png"
+    )
 
     # Convergence curves (one SA run per seed per route, snapshots every 200 iters)
     all_route_curves = {}
@@ -373,7 +482,9 @@ def fixed_param_robustness(terrain, routes, seeds):
             continue
         curves = []
         for seed in seeds:
-            curves.append(convergence_curve(terrain, start, goal, opt_cost, seed))
+            curves.append(
+                convergence_curve(terrain, start, goal, opt_cost, seed)
+            )
         all_route_curves[route_name] = curves
     plot_convergence(all_route_curves, filename="convergence_all_routes.png")
 
@@ -386,18 +497,21 @@ def robustness_test(terrain, start, goal, route_name, seeds):
     # parameter sweep
     all_stats = []
     all_raw = []
-    for param_name, values in [("T0", [2000, 4000, 8000]),
-                                ("alpha", [0.995, 0.998, 0.999]),
-                                ("iterations", [1000, 2000, 4000])]:
-        stats, raw = sweep_one_param(terrain, start, goal, opt_cost,
-                                     param_name, values, seeds)
+    for param_name, values in [
+        ("T0", [2000, 4000, 8000]),
+        ("alpha", [0.995, 0.998, 0.999]),
+        ("iterations", [1000, 2000, 4000]),
+    ]:
+        stats, raw = sweep_one_param(
+            terrain, start, goal, opt_cost, param_name, values, seeds
+        )
         all_stats += stats
         all_raw += raw
 
-
     safe_name = route_name.replace(" ", "_")
-    plot_parameter_boxplots(all_raw, route_name,
-                            filename=f"boxplots_{safe_name}.png")
+    plot_parameter_boxplots(
+        all_raw, route_name, filename=f"boxplots_{safe_name}.png"
+    )
 
     return opt_cost, all_stats
 
@@ -422,7 +536,7 @@ if __name__ == "__main__":
             "Sulzfluh (long)",
             terrain.coords_to_rowcol(781802, 205188),
             terrain.coords_to_rowcol(782548, 209637),
-        )
+        ),
     ]
 
     seeds = list(range(42, 52))  # 10 seeds
@@ -433,9 +547,7 @@ if __name__ == "__main__":
     # ── Step 2: Parameter sweep per route (per-parameter boxplots) ──
     all_route_stats = {}
     for name, start, goal in routes:
-        opt_cost, stats = robustness_test(
-            terrain, start, goal, name, seeds
-        )
+        opt_cost, stats = robustness_test(terrain, start, goal, name, seeds)
         all_route_stats[name] = (opt_cost, stats)
 
     save_results_table(all_route_stats)
