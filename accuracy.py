@@ -11,11 +11,11 @@ from simulated_annealing_a_to_b import simulated_annealing
 # ── Coordinate conversion ─────────────────────────────────────────────────────
 def world_to_grid(easting, northing, terrain):
     e, n = easting, northing
-    if e > 2_000_000:          # LV95 → LV03
+    if e > 2_000_000:
         e -= 2_000_000
         n -= 1_000_000
     col = int((e - terrain.xllcorner) / terrain.cellsize)
-    row = int((terrain.yllcorner + terrain.rows * terrain.cellsize - n) / terrain.cellsize)
+    row = terrain.rows - 1 - int((n - terrain.yllcorner) / terrain.cellsize)
     row = max(0, min(row, terrain.rows - 1))
     col = max(0, min(col, terrain.cols - 1))
     return row, col
@@ -38,15 +38,16 @@ terrain = TerrainGraph(FILE_NAME)
 
 # ── Routes ────────────────────────────────────────────────────────────────────
 routes = {
-    "Schollberg (long)": "schollberg.csv",
-    "Chuenihorn (short)": "directroute_chuenihorn.csv",   # add your second CSV here
+    "Schollberg (long)": "Skitouren/schollberg.csv",
+    "Chuenihorn (short)": "Skitouren/directroute_chuenihorn.csv",   # add your second CSV here
+    "Sulzfluh (long)": "Skitouren/sulzfluh_aufstieg.csv",
 }
 
 # ── SA Settings ───────────────────────────────────────────────────────────────
 N_RUNS = 20      # how many times SA runs per route
 T0 = 2000
 ALPHA = 0.995
-ITERATIONS = 4000
+ITERATIONS = 2000
 
 # ── Results storage ───────────────────────────────────────────────────────────
 summary = {}
