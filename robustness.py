@@ -49,8 +49,8 @@ from terrain_graph import TerrainGraph
 ## -----------------------------------------------------------
 # Defaults (held fixed while sweeping the other parameter)
 # -----------------------------------------------------------
-DEFAULT_T0 = 4000
-DEFAULT_ALPHA = 0.998
+DEFAULT_T0 = 500
+DEFAULT_ALPHA = 0.995
 DEFAULT_ITERS = 2000
 
 
@@ -389,8 +389,8 @@ def robustness_test(terrain, start, goal, route_name, seeds):
     # parameter sweep
     all_stats = []
     all_raw = []
-    for param_name, values in [("T0", [2000, 4000, 8000]),
-                                ("alpha", [0.995, 0.998, 0.999]),
+    for param_name, values in [("T0", [250, 500, 1000]),
+                                ("alpha", [0.990, 0.995, 0.998]),
                                 ("iterations", [1000, 2000, 4000])]:
         stats, raw = sweep_one_param(terrain, start, goal, opt_cost,
                                      param_name, values, seeds)
