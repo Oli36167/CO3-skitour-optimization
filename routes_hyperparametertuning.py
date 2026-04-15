@@ -2,9 +2,9 @@
 
 routes = [
         (
-            "Sulzfluh",
+            "Giraspitz",
             terrain.coords_to_rowcol(781802.1, 205187.5),
-            terrain.coords_to_rowcol(782548, 209637),
+            terrain.coords_to_rowcol(781137.8, 207497.4),
         ),
         (
             "Rotspitz",
