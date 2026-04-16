@@ -3,9 +3,10 @@ import time
 
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.ticker import FixedLocator
+
 from dijkstra_terrain_graph import dijkstra
 from load_elevation_data import load_elevation_data
-from matplotlib.ticker import FixedLocator
 from simulated_annealing_a_to_b import path_cost, simulated_annealing
 from terrain_graph import TerrainGraph
 
@@ -197,7 +198,7 @@ axes[0].plot(
     linestyle="-",
     marker="o",
     color="tab:blue",
-    label=f"Dijkstra: y = {a:.2f}x² + {b:.2f}x + {c:.2f}",
+    label=f"Dijkstra: y = {a:.2e}x² + {b:.2e}x + {c:.2e}",
 )
 
 # SA ------------

@@ -2,9 +2,10 @@ import itertools
 import math
 import time
 
+from joblib import Parallel, delayed
+
 # import matplotlib.pyplot as plt
 from dijkstra_terrain_graph import dijkstra
-from joblib import Parallel, delayed
 from load_elevation_data import load_elevation_data
 from simulated_annealing_a_to_b import simulated_annealing
 from terrain_graph import TerrainGraph
@@ -19,20 +20,24 @@ terrain = TerrainGraph(FILE_NAME)
 # -------------------------------
 # Start & goal
 # -------------------------------
-# "Chuenihorn (short)",
-start_node_r1 = terrain.coords_to_rowcol(780692.4, 204899.9)
-goal_node_r1 = terrain.coords_to_rowcol(780743.8, 206892.8)
-
-# Sulzfluhe (long)
-start_node_r2 = terrain.coords_to_rowcol(781802, 205188)
-goal_node_r2 = terrain.coords_to_rowcol(782548, 209637)
-
-# Schollberg (long)
-start_node_r3 = terrain.coords_to_rowcol(781802.1, 205187.5)
-goal_node_r3 = terrain.coords_to_rowcol(784502, 205753.2)
-
-start_nodes = [start_node_r1, start_node_r2, start_node_r3]
-end_nodes = [goal_node_r1, goal_node_r2, goal_node_r3]
+# -------------------------------
+# Define routes (start_xy, goal_xy)
+# -------------------------------
+routes = [
+    ((781802.1, 205187.5), (781137.8, 207497.4)),  # Giraspitz
+    ((781802.1, 205187.5), (785947.6, 206472.9)),  # Rotspitz
+    ((785694.6, 195408.8), (789559.8, 195614.5)),  # Älpeltispitz
+    ((784308, 177225.3), (784541.1, 173761.1)),  # Hoch Ducan
+    ((771448.9, 183255.6), (771613.5, 179002.9)),  # Sandhubel (von Arosa)
+    ((774082.6, 175132.7), (772929.7, 178994.5)),  # Valbellahorn
+    ((773501.7, 187988.8), (774243.3, 191425.3)),  # Mattjisch Horn
+    ((789401.9, 184754.7), (789150.1, 182406)),  # Sentisch Hora
+]
+# -------------------------------
+# Convert once
+# -------------------------------
+start_nodes = [terrain.coords_to_rowcol(*start) for start, _ in routes]
+end_nodes = [terrain.coords_to_rowcol(*goal) for _, goal in routes]
 
 # Precomputing Dijkstra paths for all routes once:
 dijkstra_costs = []
@@ -42,10 +47,13 @@ for start, goal in zip(start_nodes, end_nodes):
     path, cost = dijkstra(terrain, start, goal)
     dijkstra_costs.append(cost)
 
+# for i, c in enumerate(dijkstra_costs):
+#     print(i, c)
+
 # -------------------------------
 # Parameter grid
 # -------------------------------
-# Best: T0 = 500, alpha=0.995, iterations=2000
+# Best: T0 = 500, alpha=0.990, iterations=2000
 T0_list = [250, 500, 1000, 2000, 4000]
 alpha_list = [0.999, 0.998, 0.995, 0.990]
 iterations_list = [500, 1000, 2000]
@@ -73,13 +81,13 @@ def run_sa(T0, alpha, iterations, repeat_idx):
                 iterations=iterations,
             )
             if not math.isfinite(cost):
-                return repeat_idx, float("inf"), 0.0
-            ratio = cost / dijkstra_cost
+                ratio = float("inf")
+            else:
+                ratio = cost / dijkstra_cost
             ratios.append(ratio)
+    except:
+        return repeat_idx, float("inf"), time.time() - start_time
 
-    except Exception as e:
-        print(f"Repeat {repeat_idx}: Exception {e}")
-        return repeat_idx, float("inf"), 0.0
     elapsed = time.time() - start_time
 
     avg_ratio = sum(ratios) / len(ratios)
@@ -120,56 +128,25 @@ for T0, alpha, iterations in param_combinations:
             )
         else:
             print(f"  Repeat {repeat_idx}: invalid path, skipped")
-
-    if successful_runs > 0:
+    if successful_runs == 0:
+        avg_score = float("inf")
+    else:
         avg_score /= successful_runs
         print(
             f"  Average valid cost: {avg_score:.3f} ({successful_runs}/{repeats} successful)"
         )
-        results.append((T0, alpha, iterations, avg_score))
+    results.append((T0, alpha, iterations, avg_score))
+    print(f"successful_runs = {successful_runs}")
 
 # -------------------------------
 # Find best parameters
 # -------------------------------
-if results:
-    best_result = min(results, key=lambda x: x[3])
-    best_params = best_result[:3]
-    best_cost = best_result[3]
-    # best_path = best_result[4]
+best_result = min(results, key=lambda x: x[3])
+best_params = best_result[:3]
+best_cost = best_result[3]
 
-    print("\n--- BEST PARAMETERS ---")
-    print(
-        f"T0={best_params[0]}, alpha={best_params[1]}, iterations={best_params[2]}"
-    )
-    print(f"Best average cost: {best_cost:.3f}")
-
-# # -------------------------------
-# # Plot best path
-# # -------------------------------
-# if best_path:
-#     rows, cols = zip(*best_path)
-#
-#     plt.figure(figsize=(10, 8))
-#     plt.imshow(Z, cmap="terrain", origin="upper")
-#     plt.colorbar(label="Elevation (m)")
-#
-#     # Overlay path
-#     plt.plot(
-#         cols,
-#         rows,
-#         color="red",
-#         linewidth=2,
-#         linestyle="--",
-#         label="SA Best Path",
-#     )
-#
-#     # Mark start & goal
-#     plt.scatter(cols[0], rows[0], color="green", s=80, label="Start")
-#     plt.scatter(cols[-1], rows[-1], color="blue", s=80, label="Goal")
-#
-#     plt.title("Terrain Elevation with Best SA Path")
-#     plt.xlabel("Column")
-#     plt.ylabel("Row")
-#     plt.legend()
-#     plt.tight_layout()
-#     plt.show()
+print("\n--- BEST PARAMETERS ---")
+print(
+    f"T0={best_params[0]}, alpha={best_params[1]}, iterations={best_params[2]}"
+)
+print(f"Best average cost: {best_cost:.3f}")
