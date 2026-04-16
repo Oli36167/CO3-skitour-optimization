@@ -27,9 +27,9 @@ routes = [
             terrain.coords_to_rowcol(771613.5, 179002.9),
         ),
         (
-            "Schiesshorn",
-            terrain.coords_to_rowcol(771448.9, 183255.6),
-            terrain.coords_to_rowcol(772958.5, 181964),
+            "Valbellahorn",
+            terrain.coords_to_rowcol(774082.6, 175132.7),
+            terrain.coords_to_rowcol(772929.7, 178994.5),
         ),
         (
             "Mattjisch Horn",
