@@ -164,7 +164,7 @@ def mutate_path(terrain, path, T, T0):
 
 
 def simulated_annealing(
-    terrain, start, goal, T0=4000, alpha=0.998, iterations=2000
+    terrain, start, goal, T0=250, alpha=0.990, iterations=2000
 ):
 
     initial_path = safe_random_path(terrain, start, goal)

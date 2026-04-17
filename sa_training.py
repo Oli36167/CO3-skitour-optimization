@@ -2,10 +2,9 @@ import itertools
 import math
 import time
 
-from joblib import Parallel, delayed
-
 # import matplotlib.pyplot as plt
 from dijkstra_terrain_graph import dijkstra
+from joblib import Parallel, delayed
 from load_elevation_data import load_elevation_data
 from simulated_annealing_a_to_b import simulated_annealing
 from terrain_graph import TerrainGraph
@@ -53,9 +52,9 @@ for start, goal in zip(start_nodes, end_nodes):
 # -------------------------------
 # Parameter grid
 # -------------------------------
-# Best: T0 = 500, alpha=0.990, iterations=2000
-T0_list = [250, 500, 1000, 2000, 4000]
-alpha_list = [0.999, 0.998, 0.995, 0.990]
+# Best: T0 = 250, alpha=0.990, iterations=2000
+T0_list = [50, 250, 500, 1000, 2000, 4000]
+alpha_list = [0.999, 0.998, 0.995, 0.990, 0.980, 0.95]
 iterations_list = [500, 1000, 2000]
 
 repeats = 3  # stochastic algorithm repeats
