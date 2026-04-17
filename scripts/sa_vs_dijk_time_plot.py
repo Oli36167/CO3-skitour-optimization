@@ -115,7 +115,7 @@ plt.rcParams.update(
 # Plot comparison (2 panels)
 # -------------------------------
 # Directory and filename
-SAVE_DIR = "results_plots"
+SAVE_DIR = "data/results/results_plots"
 FILE_NAME = "sa_vs_dijk_computation_and_path_time_plot.png"
 
 # Plotting
@@ -364,10 +364,10 @@ slope_overlay[slope_deg >= 45] = [0.5, 0, 0.5, 0.5]
 # -------------------------------
 # Plot all stored paths side by side
 # -------------------------------
-SAVE_DIR = "results_plots"
+SAVE_DIR = "data/results/results_plots"
 FILE_NAME = "sa_vs_dijk_path_plot_for_appendix.png"
 
-cell_size_m = 25  # example: each pixel/grid cell is 30 m
+cell_size_m = 25  # example: each pixel/grid cell is 25 m
 cell_size_km = cell_size_m / 1000
 
 nrows, ncols = Z.shape
