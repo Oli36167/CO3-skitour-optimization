@@ -48,6 +48,14 @@ from skitour.simulated_annealing_a_to_b import path_cost, simulated_annealing
 from skitour.terrain_graph import TerrainGraph
 
 ## -----------------------------------------------------------
+# Output directories (relative to project root, resolved from script location)
+# -----------------------------------------------------------
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+_PROJECT_DIR = os.path.join(_SCRIPT_DIR, "..")
+RESULTS_CSV = os.path.join(_PROJECT_DIR, "data", "results", "results_csv")
+RESULTS_PLOTS = os.path.join(_PROJECT_DIR, "data", "results", "results_plots")
+
+## -----------------------------------------------------------
 # Defaults (held fixed while sweeping the other parameter)
 # -----------------------------------------------------------
 DEFAULT_T0 = 250
@@ -267,7 +275,7 @@ def plot_parameter_boxplots(all_raw, route_name, filename="boxplots.png"):
 
 
 def save_results_table(
-    all_route_stats, filename="results_csv/robustness_results.csv"
+    all_route_stats, filename=os.path.join(RESULTS_CSV, "robustness_results.csv")
 ):
     """Save all sweep results across all routes to a single CSV table."""
     fieldnames = [
@@ -371,7 +379,7 @@ def fixed_param_robustness(terrain, routes, seeds):
                 }
             )
     with open(
-        "results_csv/robustness_fixed_params_per_seed.csv", "w", newline=""
+        os.path.join(RESULTS_CSV, "robustness_fixed_params_per_seed.csv"), "w", newline=""
     ) as f:
         writer = csv.DictWriter(
             f, fieldnames=["route", "seed", "dijkstra_optimal", "cost_ratio"]
@@ -427,7 +435,7 @@ def fixed_param_robustness(terrain, routes, seeds):
         "total_runs",
     ]
     with open(
-        "results_csv/robustness_fixed_params_summary.csv", "w", newline=""
+        os.path.join(RESULTS_CSV, "robustness_fixed_params_summary.csv"), "w", newline=""
     ) as f:
         writer = csv.DictWriter(f, fieldnames=summary_fieldnames)
         writer.writeheader()
@@ -436,7 +444,7 @@ def fixed_param_robustness(terrain, routes, seeds):
 
     # Save cross-route comparison to CSV
     with open(
-        "results_csv/robustness_fixed_params_cross_route.csv", "w", newline=""
+        os.path.join(RESULTS_CSV, "robustness_fixed_params_cross_route.csv"), "w", newline=""
     ) as f:
         writer = csv.DictWriter(
             f,
@@ -482,9 +490,9 @@ def fixed_param_robustness(terrain, routes, seeds):
     ax.legend(fontsize=8)
     ax.grid(True, alpha=0.3, axis="y")
     plt.tight_layout()
-    plt.savefig("results_plots/robustness_fixed_params.png", dpi=150)
+    plt.savefig(os.path.join(RESULTS_PLOTS, "robustness_fixed_params.png"), dpi=150)
     print(
-        "  Fixed-parameter robustness plot saved to results_plots/robustness_fixed_params.png"
+        f"  Fixed-parameter robustness plot saved to {RESULTS_PLOTS}/robustness_fixed_params.png"
     )
 
     # Convergence curves (one SA run per seed per route, snapshots every 200 iters)
@@ -500,7 +508,7 @@ def fixed_param_robustness(terrain, routes, seeds):
             )
         all_route_curves[route_name] = curves
     plot_convergence(
-        all_route_curves, filename="results_plots/convergence_all_routes.png"
+        all_route_curves, filename=os.path.join(RESULTS_PLOTS, "convergence_all_routes.png")
     )
 
     return route_data
@@ -525,15 +533,15 @@ def robustness_test(terrain, start, goal, route_name, seeds):
 
     safe_name = route_name.replace(" ", "_")
     plot_parameter_boxplots(
-        all_raw, route_name, filename=f"results_plots/boxplots_{safe_name}.png"
+        all_raw, route_name, filename=os.path.join(RESULTS_PLOTS, f"boxplots_{safe_name}.png")
     )
 
     return opt_cost, all_stats
 
 
 if __name__ == "__main__":
-    os.makedirs("results_csv", exist_ok=True)
-    os.makedirs("results_plots", exist_ok=True)
+    os.makedirs(RESULTS_CSV, exist_ok=True)
+    os.makedirs(RESULTS_PLOTS, exist_ok=True)
 
     FILE_NAME = "data/maps/DHM25_subset_2.asc"
     X, Y, Z = load_elevation_data(FILE_NAME)
