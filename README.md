@@ -11,8 +11,9 @@ pip install -e .
 
 Then run the individual scripts such as:
 
-```bash
+```sh
 python scripts/sa_vs_dijk_time_plot.py
+```
 
 to obtain its results:
 
@@ -22,6 +23,13 @@ and
 
 ![Alt text](data/results/results_plots/sa_vs_dijk_path_plot_for_appendix.png)
 
-and similarly for accuracy.py, plot_comparison_3.py, robustness.py and sa_training.py
+and similarly you can run:
+
+```sh
+python scripts/accuracy.py
+python scripts/plot_comparison_3.py
+python scripts/robustness.py
+python scripts/sa_training.py
+```
 
 
