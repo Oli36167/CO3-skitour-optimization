@@ -1,13 +1,12 @@
 # CO3-skitour-optimization
 
-### Simulated Annealing vs Dijkstra – Computation Time
-
 ## Usage
 
 Run from project root:
 
-```bash
-pip install -e .
+```sh
+pip install -e
+``` 
 
 Then run the individual scripts such as:
 
