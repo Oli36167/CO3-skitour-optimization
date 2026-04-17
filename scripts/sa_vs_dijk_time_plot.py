@@ -5,15 +5,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.ticker import FixedLocator
 
-from dijkstra_terrain_graph import dijkstra
-from load_elevation_data import load_elevation_data
-from simulated_annealing_a_to_b import path_cost, simulated_annealing
-from terrain_graph import TerrainGraph
+from skitour.dijkstra_terrain_graph import dijkstra
+from skitour.load_elevation_data import load_elevation_data
+from skitour.simulated_annealing_a_to_b import path_cost, simulated_annealing
+from skitour.terrain_graph import TerrainGraph
 
 # -------------------------------
 # Load terrain
 # -------------------------------
-FILE_NAME = "DHM25_subset_2.asc"
+FILE_NAME = "data/maps/DHM25_subset_2.asc"
 X, Y, Z = load_elevation_data(FILE_NAME)
 terrain = TerrainGraph(FILE_NAME)
 

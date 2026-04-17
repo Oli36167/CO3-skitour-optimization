@@ -1,12 +1,12 @@
-import matplotlib.pyplot as plt
-import numpy as np
 import csv
 
-from dijkstra_terrain_graph import dijkstra
-from load_elevation_data import load_elevation_data
-from terrain_graph import TerrainGraph
-from simulated_annealing_a_to_b import simulated_annealing 
+import matplotlib.pyplot as plt
+import numpy as np
 
+from skitour.dijkstra_terrain_graph import dijkstra
+from skitour.load_elevation_data import load_elevation_data
+from skitour.simulated_annealing_a_to_b import simulated_annealing
+from skitour.terrain_graph import TerrainGraph
 
 
 # ── Coordinate conversion ────────────────────────────────────────────────────
@@ -15,11 +15,10 @@ def world_to_grid(easting, northing, terrain):
     if e > 2_000_000:  # LV95 → LV03
         e -= 2_000_000
         n -= 1_000_000
-    
-   
+
     col = int((e - terrain.xllcorner) / terrain.cellsize)
     row = terrain.rows - 1 - int((n - terrain.yllcorner) / terrain.cellsize)
-    
+
     row = max(0, min(row, terrain.rows - 1))
     col = max(0, min(col, terrain.cols - 1))
     return row, col
@@ -29,20 +28,22 @@ def load_groundtruth(csv_file, terrain):
     groundtruth = []
     with open(csv_file, "r") as f:
         for row in csv.DictReader(f, delimiter=";"):
-            node = world_to_grid(float(row["Easting"]), float(row["Northing"]), terrain)
+            node = world_to_grid(
+                float(row["Easting"]), float(row["Northing"]), terrain
+            )
             if terrain._valid_node(*node):
                 groundtruth.append(node)
     return groundtruth
 
 
 # ── Load data ────────────────────────────────────────────────────────────────
-FILE_NAME = "DHM25_subset_2.asc"
+FILE_NAME = "data/maps/DHM25_subset_2.asc"
 X, Y, Z = load_elevation_data(FILE_NAME)
 terrain = TerrainGraph(FILE_NAME)
 
-groundtruth = load_groundtruth("Skitouren/schollberg.csv", terrain)
+groundtruth = load_groundtruth("data/maps/Skitouren/schollberg.csv", terrain)
 start = groundtruth[0]
-goal  = groundtruth[-1]
+goal = groundtruth[-1]
 
 path, cost = dijkstra(terrain, start, goal)
 if path is None:
@@ -64,6 +65,7 @@ g_rows, g_cols = zip(*groundtruth)
 
 
 # ── Plot ─────────────────────────────────────────────────────────────────────
+
 
 def compute_slope(Z, cellsize):
     # gradient in row and column directions
@@ -108,16 +110,32 @@ plt.clabel(cs, inline=True, fontsize=8, fmt="%d")
 plt.plot(g_cols, g_rows, color="black", linewidth=2, label="Ground truth")
 
 # Dijkstra path
-plt.plot(d_cols, d_rows, color="blue", linewidth=2, linestyle="--", label="Dijkstra path")
+plt.plot(
+    d_cols,
+    d_rows,
+    color="blue",
+    linewidth=2,
+    linestyle="--",
+    label="Dijkstra path",
+)
 
 # SA initial path
-#plt.plot(init_cols, init_rows, color="yellow", linewidth=1.5, linestyle=":", label="SA initial path")
+# plt.plot(init_cols, init_rows, color="yellow", linewidth=1.5, linestyle=":", label="SA initial path")
 # Simulated Annealing
-plt.plot(sa_cols, sa_rows, color="red", linewidth=2, linestyle="--", label=f"Sim. Annealing")
+plt.plot(
+    sa_cols,
+    sa_rows,
+    color="red",
+    linewidth=2,
+    linestyle="--",
+    label=f"Sim. Annealing",
+)
 
 # Start & goal (shared between both paths)
-plt.scatter(g_cols[0],  g_rows[0],  color="black", s=80, zorder=5, label="Start")
-plt.scatter(g_cols[-1], g_rows[-1], color="chartreuse",  s=80, zorder=5, label="Goal")
+plt.scatter(g_cols[0], g_rows[0], color="black", s=80, zorder=5, label="Start")
+plt.scatter(
+    g_cols[-1], g_rows[-1], color="chartreuse", s=80, zorder=5, label="Goal"
+)
 
 # Zoom to the area containing both paths
 all_rows = list(d_rows) + list(sa_rows) + list(g_rows)

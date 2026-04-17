@@ -1,6 +1,6 @@
 import heapq
 
-from terrain_graph import TerrainGraph
+from skitour.terrain_graph import TerrainGraph
 
 
 def dijkstra(terrain, start, goal):

@@ -2,17 +2,18 @@ import itertools
 import math
 import time
 
-# import matplotlib.pyplot as plt
-from dijkstra_terrain_graph import dijkstra
 from joblib import Parallel, delayed
-from load_elevation_data import load_elevation_data
-from simulated_annealing_a_to_b import simulated_annealing
-from terrain_graph import TerrainGraph
+
+# import matplotlib.pyplot as plt
+from skitour.dijkstra_terrain_graph import dijkstra
+from skitour.load_elevation_data import load_elevation_data
+from skitour.simulated_annealing_a_to_b import simulated_annealing
+from skitour.terrain_graph import TerrainGraph
 
 # -------------------------------
 # Load terrain
 # -------------------------------
-FILE_NAME = "DHM25_subset_2.asc"
+FILE_NAME = "data/maps/DHM25_subset_2.asc"
 X, Y, Z = load_elevation_data(FILE_NAME)
 terrain = TerrainGraph(FILE_NAME)
 
