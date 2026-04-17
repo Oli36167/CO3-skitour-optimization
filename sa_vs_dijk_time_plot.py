@@ -139,6 +139,17 @@ def linreg(x, y, deg, num_points=200):
     return coeffs, x_fit, y_fit
 
 
+def sci_notation(val, precision=2, first=False):
+    sign = "-" if val < 0 else ("" if first else "+")
+    s = f"{abs(val):.{precision}e}"  # e.g. '2.34e-04'
+    base, exp = s.split("e")
+    exp = int(exp)  # remove leading zeros
+    base = str(float(base))
+    if exp == 0:
+        return f"{sign} {base}"
+    return f"{sign} {base}·10^{{{exp}}}"
+
+
 coeffs_dij_comp, x_fit_dij_comp, y_fit_dij_comp = linreg(
     distances_km, dij_time_m, 2
 )
@@ -181,13 +192,17 @@ axes[0].plot(
 )
 
 # adding the legend
+m_sa_comp = coeffs_sa_comp[0]
 axes[0].plot(
     [],
     [],
     linestyle="--",
     marker="s",
     color="tab:orange",
-    label=f"SA: y = {coeffs_sa_comp[0]:.2f}x + {coeffs_sa_comp[1]:.2f}",
+    label=(
+        f"$SA(x) ≈ {sci_notation(m_sa_comp, first = True)}x$"
+        # "+ {coeffs_sa_comp[1]:.2f}$" # excluded because ≈ 0.01
+    ),
 )
 
 # adding the legend
@@ -198,7 +213,11 @@ axes[0].plot(
     linestyle="-",
     marker="o",
     color="tab:blue",
-    label=f"Dijkstra: y = {a:.2e}x² + {b:.2e}x + {c:.2e}",
+    label=(
+        f"$D(x) ≈ {sci_notation(a, first = True)}x^2 "
+        f"{sci_notation(b)}x$"
+        # f"{sci_notation(c)}$" # removed in the interest of space (it was ≈ 0)
+    ),
 )
 
 # SA ------------
@@ -219,7 +238,7 @@ axes[0].plot(
 
 axes[0].set_xlabel("Distance / km")
 axes[0].set_ylabel("Computation Time / min")
-axes[0].grid(True)
+axes[0].grid(False)
 axes[0].legend(loc="upper left")
 
 # ---- RIGHT: path cost ----
@@ -262,19 +281,24 @@ axes[1].plot(
     linestyle="-.",
     marker="v",
     color="tab:gray",
-    label=f"SA initial: y = {m:.2f}x + {b:.2f}",
+    label=(
+        f"$SA_{{init}}(x) ≈ {sci_notation(m, first = True)}x {sci_notation(b)}$"
+    ),
 )
 
 # adding the legend
+m, b = coeffs_sa_cost
 axes[1].plot(
     [],
     [],
     linestyle="--",
     marker="s",
     color="tab:orange",
-    label=f"SA: y = {coeffs_sa_cost[0]:.2f}x + {coeffs_sa_cost[1]:.2f}",
+    label=(f"$SA(x) ≈ {sci_notation(m, first = True)}x {sci_notation(b)}$"),
 )
 
+
+m, b = coeffs_dij_cost
 # adding the legend
 axes[1].plot(
     [],
@@ -282,7 +306,7 @@ axes[1].plot(
     linestyle="-",
     marker="o",
     color="tab:blue",
-    label=f"Dijkstra: y = {coeffs_dij_cost[0]:.2f}x + {coeffs_dij_cost[1]:.2f}",
+    label=(f"$D(x) ≈ {sci_notation(m, first = True)}x {sci_notation(b)}$"),
 )
 
 
@@ -298,7 +322,7 @@ axes[1].plot(
 
 axes[1].set_xlabel("Distance / km")
 axes[1].set_ylabel("Travel Time / h")
-axes[1].grid(True)
+axes[1].grid(False)
 axes[1].legend(loc="upper left")
 
 plt.tight_layout()
@@ -407,7 +431,7 @@ for goal_node, path_d in dij_paths.items():
     axes[0].scatter(x_coords[0], y_coords[0], color="green", s=60)
     axes[0].scatter(x_coords[-1], y_coords[-1], color="blue", s=60)
 
-axes[0].legend(title="Goal", fontsize=8, loc="upper right")
+axes[0].legend(fontsize=8, loc="upper right")
 
 # ---------- Simulated Annealing ----------
 axes[1].set_title("Simulated Annealing")
