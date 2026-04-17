@@ -1,0 +1,5 @@
+metric,value
+overall_avg_ratio,1.136053929130263
+cv_across_routes,0.06383238745114378
+avg_cv_across_seeds,0.01445993363872011
+route_choice_dominant,True
