@@ -1,0 +1,194 @@
+"""
+Module providing an implicit terrain graph for ski tour routing.
+
+Example:
+    terrain = TerrainGraph("DHM25_subset.asc")
+
+    for neighbor, cost in terrain.get_neighbors((i, j)):
+        ...
+"""
+
+import math
+
+import numpy as np
+
+
+class TerrainGraph:
+
+    def __init__(self, asc_file, uphill_cost=None, downhill_cost=None):
+
+        self.data, header = self._load_asc(asc_file)
+        self.cellsize = header["cellsize"]
+        self.nodata = header["NODATA_value"]
+        self.xllcorner = header["xllcorner"]  # ← add this
+        self.yllcorner = header["yllcorner"]
+        self.rows, self.cols = self.data.shape
+
+        dzdx, dzdy = np.gradient(self.data, self.cellsize, self.cellsize)
+        self.slope_deg = np.degrees(np.arctan(np.sqrt(dzdx**2 + dzdy**2)))
+
+        # 8-neighbor directions
+        # fmt: off
+        self.directions = [(-1, -1), (-1, 0), (-1, 1),
+                           (0, -1),           (0, 1),
+                           (1, -1),  (1, 0),  (1, 1),
+                           ]
+
+        # default cost model
+        self.angle_cost = uphill_cost or {
+            (-90, -45): float("inf"),
+            (-45,   0): 0.6,  # people will downclimb unless they are pros
+            (0, 25): 1.0,  # baseline speed for 0-25 degree slopes
+            (25, 30): 1.4,
+            (30, 35): 1.8,
+            (35, 45): 2.5,
+            (45, 90): float("inf"),
+        }
+
+    # fmt: on
+
+    def coords_to_rowcol(self, x, y):
+        """Convert LV95 coordinates to (row, col) grid indices."""
+        col = int((x - self.xllcorner) / self.cellsize)
+        row = self.rows - 1 - int((y - self.yllcorner) / self.cellsize)
+        return (row, col)
+
+    def _load_asc(self, asc_file):
+
+        header = {}
+
+        with open(asc_file) as f:
+
+            for _ in range(6):
+                key, value = f.readline().split()
+                header[key] = float(value)
+
+            data = np.loadtxt(f)
+
+        return data, header
+
+    def _valid_node(self, i, j):
+
+        if not (0 <= i < self.rows and 0 <= j < self.cols):
+            return False
+
+        if self.data[i, j] == self.nodata:
+            return False
+
+        return True
+
+    def get_neighbors(self, node):
+        """
+        Yield all valid neighbors of a node and their travel cost.
+
+        Interior nodes: 8 neighbors
+        Edge nodes: fewer neighbors
+        """
+        row, col = node
+
+        for d_row, d_col in self.directions:
+
+            neighbor_row = row + d_row
+            neighbor_col = col + d_col
+
+            if not self._valid_node(neighbor_row, neighbor_col):
+                continue
+
+            neighbor = (neighbor_row, neighbor_col)
+
+            cost = self.edge_cost(node, neighbor)
+
+            yield neighbor, cost
+
+    def _vertical_distance(self, node_from, node_to):
+        row_from, col_from = node_from
+        row_to, col_to = node_to
+
+        height_from = self.data[row_from, col_from]
+        height_to = self.data[row_to, col_to]
+        return height_to - height_from
+
+    def _slope_angle(self, node_from, node_to):
+
+        row_from, col_from = node_from
+        row_to, col_to = node_to
+
+        delta_row = (row_to - row_from) * self.cellsize
+        delta_col = (col_to - col_from) * self.cellsize
+
+        dist_h = math.sqrt(delta_row**2 + delta_col**2)
+        dist_v = self._vertical_distance(node_from, node_to)
+        if dist_h == 0:
+            return 0.0
+        slope = dist_v / dist_h
+
+        return math.degrees(math.atan(slope))
+
+    def _uphill_travel_time(self, angle, dist_h, node_from, node_to):
+        speed_h = 4 / 3.6  # horizontal base speed in m/s
+        speed_v = 0.4 / 3.6  # vertical uphill base speed in m/s
+        dist_v = max(0, self._vertical_distance(node_from, node_to))
+        for (low, high), factor in self.angle_cost.items():
+            if low <= angle < high and angle >= 0:
+                time = dist_h / speed_h + factor * dist_v / speed_v
+                return time
+        # if angle not in range:
+        return float("inf")
+
+    def _descent_speed(self, angle):
+        v_max = 40 / 3.6  # max dh speed in m/s
+        v_min = 4 / 3.6  # v_min = horizontal speed
+        # v_min = 1e-3  # prevent for division / 0
+        if abs(angle) > 45:
+            return 0.0
+
+        rise = 1 / (1 + np.exp(-(angle - 25) / 2))
+        decay = 1 / (1 + np.exp((angle - 50) / 8))
+
+        raw = v_max * rise * decay
+
+        return np.maximum(raw, v_min)
+
+    def _downhill_travel_time(self, dist_h, angle):
+        return dist_h / self._descent_speed(angle)
+
+    def edge_cost(self, node_from, node_to):
+        """
+        Compute travel cost from node_from to node_to.
+        Edges with slope > 45° are impassable (inf).
+        """
+
+        row_from, col_from = node_from
+        row_to, col_to = node_to
+
+        # 🚨 enforce adjacency
+        if max(abs(row_from - row_to), abs(col_from - col_to)) > 1:
+            return float("inf")
+
+        # check if either end is too steep
+        start_slope = self.slope_deg[node_from]
+        end_slope = self.slope_deg[node_to]
+        if start_slope > 45 or end_slope > 45:
+            return float("inf")
+
+        # compute discrete edge slope along this segment
+        angle = self._slope_angle(node_from, node_to)
+
+        # horizontal distance
+        row_from, col_from = node_from
+        row_to, col_to = node_to
+        delta_row = (row_to - row_from) * self.cellsize
+        delta_col = (col_to - col_from) * self.cellsize
+        dist_h = math.sqrt(delta_row**2 + delta_col**2)
+
+        # uphill
+        if angle >= 0:
+            cost = self._uphill_travel_time(angle, dist_h, node_from, node_to)
+            if cost is None or not math.isfinite(cost):
+                return float("inf")
+            return cost
+        else:  # downhill
+            if angle > -45:
+                return self._downhill_travel_time(dist_h, angle)
+            else:
+                return float("inf")
