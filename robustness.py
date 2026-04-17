@@ -1,12 +1,12 @@
 """
 This code evaluates
 - how well SA performs compared to Dijkstra: cost ratio
-- how stable that performance is: sd
-- on three routes
+- how stable that performance is: cv
+- on two routes
 
 1. Fixed-parameter robustness
 - Dijkstra as optimal cost
-- run SA 10 times (one per seed) with default parameters (T0=4000, alpha=0.998,
+- run SA 10 times (one per seed) with default parameters (T0=250, alpha=0.990,
     2000 iterations)
         - cost ratio (SA/Dijkstra)
         - mean, sd, coefficient of variation for each route
@@ -17,7 +17,7 @@ This code evaluates
 
 2. Parameter sensitivity
 - for each route, it sweeps one parameter at a time
-- T0 over {2000, 4000, 8000}, alpha over {0.995, 0.998, 0.999},
+- T0 over {100, 250, 500}, alpha over {0.980, 0.990, 0.995},
    and iterations over {1000, 2000, 4000}
 - holding the other two at their defaults
 - each configuration runs 10 times (one per seed)
@@ -33,6 +33,7 @@ Outputs:
 
 import csv
 import math
+import os
 import random
 import time
 from collections import defaultdict
@@ -49,8 +50,8 @@ from terrain_graph import TerrainGraph
 ## -----------------------------------------------------------
 # Defaults (held fixed while sweeping the other parameter)
 # -----------------------------------------------------------
-DEFAULT_T0 = 500
-DEFAULT_ALPHA = 0.995
+DEFAULT_T0 = 250
+DEFAULT_ALPHA = 0.990
 DEFAULT_ITERS = 2000
 
 
@@ -58,7 +59,7 @@ def run_single_trial(terrain, start, goal, T0, alpha, iterations, seed):
     random.seed(seed)
     t0 = time.time()
     try:
-        _, cost, initial_path, _ = simulated_annealing(
+        _, cost, initial_path = simulated_annealing(
             terrain, start, goal, T0=T0, alpha=alpha, iterations=iterations
         )
         elapsed = time.time() - t0
@@ -91,12 +92,12 @@ def compute_stats(results, opt_cost):
     worst = max(costs)
     std = (sum((c - avg) ** 2 for c in costs) / len(costs)) ** 0.5
     ratio = avg / opt_cost if opt_cost > 0 else float("inf")
-    std_ratio = std / opt_cost if opt_cost > 0 else float("inf")
+    cv = std / avg if avg > 0 else float("inf")
     avg_time = sum(r["time_s"] for r in valid) / len(valid)
     avg_improve = sum(r["improvement"] for r in valid) / len(valid)
     return {
         "avg": avg, "best": best, "worst": worst, "std": std,
-        "std_ratio": std_ratio,
+        "cv": cv,
         "ratio": ratio, "avg_improve": avg_improve, "avg_time": avg_time,
         "valid": len(valid), "total": len(results),
     }
@@ -128,19 +129,20 @@ def sweep_one_param(terrain, start, goal, opt_cost, param_name, values, seeds):
 
 
 def convergence_curve(terrain, start, goal, opt_cost, seed, max_iters=4000, step=200):
-    random.seed(seed)
-    try:
-        _, _, _, history = simulated_annealing(
-            terrain, start, goal, T0=DEFAULT_T0, alpha=DEFAULT_ALPHA,
-            iterations=max_iters, snapshot_interval=step,
-        )
-        return [
-            {"iterations": h["iteration"], "ratio": h["cost"] / opt_cost}
-            for h in history
-        ]
-    except Exception as e:
-        print(f"  Convergence curve failed (seed={seed}): {e}")
-        return []
+    points = []
+    for n_iters in range(step, max_iters + 1, step):
+        random.seed(seed)
+        try:
+            _, cost, _ = simulated_annealing(
+                terrain, start, goal, T0=DEFAULT_T0, alpha=DEFAULT_ALPHA,
+                iterations=n_iters,
+            )
+            ratio = cost / opt_cost if opt_cost > 0 else float("inf")
+            points.append({"iterations": n_iters, "ratio": ratio})
+        except Exception as e:
+            print(f"  Convergence curve failed (seed={seed}, iters={n_iters}): {e}")
+            return points
+    return points
 
 
 def plot_convergence(route_curves, filename="convergence.png"):
@@ -213,11 +215,11 @@ def plot_parameter_boxplots(all_raw, route_name, filename="boxplots.png"):
 
 
 
-def save_results_table(all_route_stats, filename="robustness_results.csv"):
+def save_results_table(all_route_stats, filename="results_csv/robustness_results.csv"):
     """Save all sweep results across all routes to a single CSV table."""
     fieldnames = [
         "Route", "Parameter", "Value", "Avg Cost", "Best Cost", "Worst Cost",
-        "Std", "Std Ratio", "Ratio to Optimal", "Avg Improvement", "Avg Time (s)",
+        "Std", "CV", "Ratio to Optimal", "Avg Improvement", "Avg Time (s)",
         "Valid Runs", "Total Runs", "Dijkstra Optimal",
     ]
     rows = []
@@ -231,7 +233,7 @@ def save_results_table(all_route_stats, filename="robustness_results.csv"):
                 "Best Cost": f"{s['best']:.1f}",
                 "Worst Cost": f"{s['worst']:.1f}",
                 "Std": f"{s['std']:.1f}",
-                "Std Ratio": f"{s['std_ratio']:.4f}",
+                "CV": f"{s['cv']:.4f}",
                 "Ratio to Optimal": f"{s['ratio']:.3f}",
                 "Avg Improvement": f"{s['avg_improve']:.1%}",
                 "Avg Time (s)": f"{s['avg_time']:.2f}",
@@ -305,7 +307,6 @@ def fixed_param_robustness(terrain, routes, seeds):
             "route": route_name_key,
             "dijkstra_optimal": d["opt_cost"],
             "avg_ratio": avg,
-            "std_ratio": std,
             "cv": cv,
             "best_ratio": min(ratios),
             "worst_ratio": max(ratios),
@@ -317,7 +318,6 @@ def fixed_param_robustness(terrain, routes, seeds):
         "route": "ALL_ROUTES",
         "dijkstra_optimal": "",
         "avg_ratio": np.mean(all_ratios),
-        "std_ratio": np.std(all_ratios),
         "cv": np.std(all_ratios) / np.mean(all_ratios) if np.mean(all_ratios) > 0 else "",
         "best_ratio": min(all_ratios),
         "worst_ratio": max(all_ratios),
@@ -325,7 +325,7 @@ def fixed_param_robustness(terrain, routes, seeds):
         "total_runs": len(seeds) * len(routes),
     })
     summary_fieldnames = [
-        "route", "dijkstra_optimal", "avg_ratio", "std_ratio", "cv",
+        "route", "dijkstra_optimal", "avg_ratio", "cv",
         "best_ratio", "worst_ratio", "valid_runs", "total_runs",
     ]
     with open("results_csv/robustness_fixed_params_summary.csv", "w", newline="") as f:
@@ -365,8 +365,8 @@ def fixed_param_robustness(terrain, routes, seeds):
     ax.legend(fontsize=8)
     ax.grid(True, alpha=0.3, axis="y")
     plt.tight_layout()
-    plt.savefig("robustness_fixed_params.png", dpi=150)
-    print("  Fixed-parameter robustness plot saved to robustness_fixed_params.png")
+    plt.savefig("results_plots/robustness_fixed_params.png", dpi=150)
+    print("  Fixed-parameter robustness plot saved to results_plots/robustness_fixed_params.png")
 
     # Convergence curves (one SA run per seed per route, snapshots every 200 iters)
     all_route_curves = {}
@@ -389,8 +389,8 @@ def robustness_test(terrain, start, goal, route_name, seeds):
     # parameter sweep
     all_stats = []
     all_raw = []
-    for param_name, values in [("T0", [250, 500, 1000]),
-                                ("alpha", [0.990, 0.995, 0.998]),
+    for param_name, values in [("T0", [100, 250, 500]),
+                                ("alpha", [0.980, 0.990, 0.995]),
                                 ("iterations", [1000, 2000, 4000])]:
         stats, raw = sweep_one_param(terrain, start, goal, opt_cost,
                                      param_name, values, seeds)
@@ -400,13 +400,16 @@ def robustness_test(terrain, start, goal, route_name, seeds):
 
     safe_name = route_name.replace(" ", "_")
     plot_parameter_boxplots(all_raw, route_name,
-                            filename=f"boxplots_{safe_name}.png")
+                            filename=f"results_plots/boxplots_{safe_name}.png")
 
     return opt_cost, all_stats
 
 
 if __name__ == "__main__":
-    FILE_NAME = "DHM25_subset_stantoenien.asc"
+    os.makedirs("results_csv", exist_ok=True)
+    os.makedirs("results_plots", exist_ok=True)
+
+    FILE_NAME = "DHM25_subset_2.asc"
     X, Y, Z = load_elevation_data(FILE_NAME)
     terrain = TerrainGraph(FILE_NAME)
 
@@ -417,11 +420,6 @@ if __name__ == "__main__":
             terrain.coords_to_rowcol(780743.8, 206892.8),
         ),
         (
-            "Schollberg (long)",
-            terrain.coords_to_rowcol(781802.1, 205187.5),
-            terrain.coords_to_rowcol(784502, 205753.2),
-        ),
-        (
             "Sulzfluh (long)",
             terrain.coords_to_rowcol(781802, 205188),
             terrain.coords_to_rowcol(782548, 209637),
@@ -430,7 +428,7 @@ if __name__ == "__main__":
 
     seeds = list(range(42, 52))  # 10 seeds
 
-    # ── Step 1: Fixed-parameter robustness (convergence + cross-route boxplots) ──
+    # ── Step 1: Fixed-parameter robustness ──
     fixed_param_robustness(terrain, routes, seeds)
 
     # ── Step 2: Parameter sweep per route (per-parameter boxplots) ──
