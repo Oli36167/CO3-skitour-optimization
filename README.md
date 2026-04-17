@@ -5,7 +5,7 @@
 Run from project root:
 
 ```sh
-pip install -e
+pip install -e .
 ``` 
 
 Then run the individual scripts such as:
