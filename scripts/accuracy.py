@@ -47,9 +47,9 @@ routes = {
 }
 
 # ── SA Settings ───────────────────────────────────────────────────────────────
-N_RUNS = 20  # how many times SA runs per route
-T0 = 2000
-ALPHA = 0.995
+N_RUNS = 20      # how many times SA runs per route
+T0 = 250
+ALPHA = 0.999
 ITERATIONS = 2000
 
 # ── Results storage ───────────────────────────────────────────────────────────

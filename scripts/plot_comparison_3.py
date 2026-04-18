@@ -41,7 +41,7 @@ FILE_NAME = "data/maps/DHM25_subset_2.asc"
 X, Y, Z = load_elevation_data(FILE_NAME)
 terrain = TerrainGraph(FILE_NAME)
 
-groundtruth = load_groundtruth("data/maps/Skitouren/schollberg.csv", terrain)
+groundtruth = load_groundtruth("data/maps/Skitouren/sulzfluh_aufstieg.csv", terrain)
 start = groundtruth[0]
 goal = groundtruth[-1]
 
