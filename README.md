@@ -1,6 +1,5 @@
 # CO3-skitour-optimization
-This project compares **Dijkstra’s algorithm** and **Simulated Annealing** for ski tour route optimization on terrain data.  
-The focus is on computation time, path quality, and scalability with increasing distance.
+This project compares **Dijkstra’s algorithm** and **Simulated Annealing** for ski tour route optimization on terrain data. The focus is on computation time, path quality, and scalability with increasing distance.
 
 ## Usage
 Run from project root:
@@ -12,7 +11,7 @@ pip install -e .
 Then run the individual scripts such as:
 
 ```sh
-python scripts/sa_vs_dijk_time_plot.py
+python scripts/efficiency.py
 ```
 
 to obtain its results:
@@ -29,7 +28,7 @@ and similarly you can run:
 python scripts/accuracy.py
 python scripts/plot_comparison_3.py
 python scripts/robustness.py
-python scripts/sa_training.py
+python scripts/sa_parameter_search.py
 ```
 
 
