@@ -543,7 +543,7 @@ if __name__ == "__main__":
     os.makedirs(RESULTS_CSV, exist_ok=True)
     os.makedirs(RESULTS_PLOTS, exist_ok=True)
 
-    FILE_NAME = "data/maps/DHM25_subset_2.asc"
+    FILE_NAME = os.path.join(_PROJECT_DIR, "data", "maps", "DHM25_subset_2.asc")
     X, Y, Z = load_elevation_data(FILE_NAME)
     terrain = TerrainGraph(FILE_NAME)
 
