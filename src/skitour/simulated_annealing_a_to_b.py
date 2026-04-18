@@ -1,3 +1,9 @@
+"""
+Simulated annealing for terrain pathfinding, including path initialization,
+mutation strategies, and cost evaluation.
+Written with the assistance of ChatGPT.
+"""
+
 import math
 import random
 
@@ -203,6 +209,3 @@ def simulated_annealing(
             print(f"Iter {k}, Temp {T:.2f}, Cost {best_cost:.0f}")
 
     return best, best_cost, initial_path
-
-
-# -----------------------------------------

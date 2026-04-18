@@ -1,7 +1,8 @@
 # CO3-skitour-optimization
+This project compares **Dijkstra’s algorithm** and **Simulated Annealing** for ski tour route optimization on terrain data.  
+The focus is on computation time, path quality, and scalability with increasing distance.
 
 ## Usage
-
 Run from project root:
 
 ```sh

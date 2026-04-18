@@ -1,3 +1,9 @@
+"""
+Grid search over simulated annealing parameters (T0, alpha, iterations)
+for terrain pathfinding, evaluated via cost ratios to Dijkstra solutions.
+Developed with the help of ChatGPT.
+"""
+
 import itertools
 import math
 import time
@@ -46,9 +52,6 @@ dijkstra_costs = []
 for start, goal in zip(start_nodes, end_nodes):
     path, cost = dijkstra(terrain, start, goal)
     dijkstra_costs.append(cost)
-
-# for i, c in enumerate(dijkstra_costs):
-#     print(i, c)
 
 # -------------------------------
 # Parameter grid
