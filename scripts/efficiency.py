@@ -1,3 +1,9 @@
+"""
+Benchmark Dijkstra vs. simulated annealing on elevation data,
+evaluating computation time and route quality over multiple distances.
+Developed with the help of ChatGPT.
+"""
+
 import os
 import time
 

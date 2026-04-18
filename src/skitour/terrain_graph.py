@@ -161,7 +161,7 @@ class TerrainGraph:
         row_from, col_from = node_from
         row_to, col_to = node_to
 
-        # 🚨 enforce adjacency
+        # enforce adjacency
         if max(abs(row_from - row_to), abs(col_from - col_to)) > 1:
             return float("inf")
 

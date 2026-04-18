@@ -1,6 +1,10 @@
-import numpy as np
+"""
+Load and preprocess elevation data from ASC raster files,
+returning coordinate grids and elevation matrix.
+Written with the assistance of ChatGPT.
+"""
 
-ASC_FILE = "DHM25_subset.asc"
+import numpy as np
 
 
 def load_elevation_data(filename):
